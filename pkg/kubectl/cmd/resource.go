@@ -31,8 +31,22 @@ import (
 // not satisfied, or a generic error if any other problems occur.
 func ResourceFromArgsOrFile(cmd *cobra.Command, args []string, filename string, typer runtime.ObjectTyper, mapper meta.RESTMapper) (mapping *meta.RESTMapping, namespace, name string) {
 	// If command line args are passed in, use those preferentially.
-	if len(args) > 0 && len(args) != 2 {
-		usageError(cmd, "If passing in command line parameters, must be resource and name")
+	if len(args) == 1 {
+		resource := kubectl.ExpandResourceShortcut(args[0])
+		if len(resource) == 0 {
+			usageError(cmd, "Must provide resource or a resource and name as command line params")
+		}
+		namespace = getKubeNamespace(cmd)
+
+		version, kind, err := mapper.VersionAndKindForResource(resource)
+		if err != nil {
+			// The error returned by mapper is "no resource defined", which is a usage error
+			usageError(cmd, err.Error())
+		}
+
+		mapping, err = mapper.RESTMapping(version, kind)
+		checkErr(err)
+		return
 	}
 
 	if len(args) == 2 {
