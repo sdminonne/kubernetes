@@ -76,11 +76,20 @@ Examples:
 
 			}
 
+			errs := util.ErrorList{}
 			for _, name := range items {
 				err = kubectl.NewRESTHelper(client, mapping).Delete(namespace, name)
-				checkErr(err)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("Unable to delete %s. %v", name, err))
+					continue
+				}
 				fmt.Fprintf(out, "%s\n", name)
 			}
+
+			for _, e := range errs {
+				glog.Error(e)
+			}
+
 		},
 	}
 	cmd.Flags().StringP("filename", "f", "", "Filename or URL to file to use to delete the resource")
