@@ -38,7 +38,7 @@ type RESTCallItem struct {
 	Namespace string
 }
 
-func NewRESTCallItem(mapping *meta.RESTMapping, client kubectl.RESTClient, name, namespace string) *RESTCallItem {
+func NewRESTCallItem(mapping *meta.RESTMapping, client kubectl.RESTClient, namespace, name string) *RESTCallItem {
 	return &RESTCallItem{
 		Mapping:   mapping,
 		Client:    client,
