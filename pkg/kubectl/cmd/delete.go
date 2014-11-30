@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/api/meta"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/kubectl"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/runtime"
@@ -30,11 +31,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type RESTCallItem struct {
+	Mapping   *meta.RESTMapping
+	Client    kubectl.RESTClient
+	Name      string
+	Namespace string
+}
+
+func NewRESTCallItem(mapping *meta.RESTMapping, client kubectl.RESTClient, name, namespace string) *RESTCallItem {
+	return &RESTCallItem{
+		Mapping:   mapping,
+		Client:    client,
+		Name:      name,
+		Namespace: namespace,
+	}
+}
+
 func (f *Factory) NewCmdDelete(out io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete ([-f filename] | [-l labelSelector] | (<resource> <id>))",
-		Short: "Delete a resource by filename, stdin or resource and id",
-		Long: `Delete a resource by filename, stdin or resource and id.
+		Use:   "delete ([-f filename] | [<resource type> [, <resource_type>]* -l labelSelector] | [<resource> <id>])",
+		Short: "Delete a resource by filename, stdin. Comma separted resource types and label selector, or  resource and id",
+		Long: `Delete a resource by filename, stdin. Comma separated reosurce types and label selector or resource and id.
 
 JSON and YAML formats are accepted.
 
@@ -45,46 +62,81 @@ Note that the delete command does NOT do resource version checks, so if someone
 submits an update to a resource right when you submit a delete, their update
 will be lost along with the rest of the resource.
 
-Examples:
+Examples: l 
   $ kubectl delete -f pod.json
   <delete a pod using the type and id pod.json>
 
   $ cat pod.json | kubectl delete -f -
   <delete a pod based on the type and id in the json passed into stdin>
 
+  $ kubectls delete pods,replicationControllers -l name=myLabel
+  <delete all pods and replication controllers with label name=myLabel>
+
   $ kubectl delete pod 1234-56-7890-234234-456456
   <delete a pod with ID 1234-56-7890-234234-456456>`,
 		Run: func(cmd *cobra.Command, args []string) {
 
-			var items []string
+			selector := GetFlagString(cmd, "selector")
 			filename := GetFlagString(cmd, "filename")
-			mapping, namespace, name := ResourceFromArgsOrFile(cmd, args, filename, f.Typer, f.Mapper)
-			client, err := f.Client(cmd, mapping)
-			checkErr(err)
 
-			if len(name) > 0 {
-				items = append(items, name)
+			if len(selector) > 0 && len(filename) > 0 {
+				usageError(cmd, "Cannot specify filename and label selector")
 			}
 
-			selector := GetFlagString(cmd, "selector")
-			if len(selector) != 0 {
-				labelSelector, err := labels.ParseSelector(selector)
-				checkErr(err)
-				restHelper := kubectl.NewRESTHelper(client, mapping)
-				obj, err := restHelper.Get(namespace, name, labelSelector)
-				checkErr(err)
-				extractItems(obj, &items)
+			var RESTCallData []RESTCallItem
 
+			if len(filename) > 0 && len(args) == 0 {
+				mapping, namespace, name, _ := ResourceFromFile(filename, f.Typer, f.Mapper)
+				client, err := f.Client(cmd, mapping)
+				checkErr(err)
+				RESTCallData = append(RESTCallData, *NewRESTCallItem(mapping, client, namespace, name))
+			}
+
+			if len(filename) == 0 {
+				extractedArgs := ExtractEventuallyCommaSeparatedArgs(args)
+				if len(selector) == 0 && len(extractedArgs) == 2 {
+					mapping, namespace, name := ResourceFromArgs(cmd, extractedArgs, f.Mapper)
+					client, err := f.Client(cmd, mapping)
+					checkErr(err)
+					RESTCallData = append(RESTCallData, *NewRESTCallItem(mapping, client, namespace, name))
+				} else if len(selector) > 0 { // there is a label
+					namespace := getKubeNamespace(cmd)
+					for _, arg := range extractedArgs {
+						if arg == "all" {
+							fmt.Printf("---> TODO: handle all\n")
+						}
+						resource := kubectl.ExpandResourceShortcut(arg)
+						if len(resource) == 0 {
+							usageError(cmd, "Unknown resource %s", resource)
+						}
+						version, kind, err := f.Mapper.VersionAndKindForResource(resource)
+						checkErr(err)
+						mapping, err := f.Mapper.RESTMapping(version, kind)
+						checkErr(err)
+						client, err := f.Client(cmd, mapping)
+						checkErr(err)
+						labelSelector, err := labels.ParseSelector(selector)
+						checkErr(err)
+						restHelper := kubectl.NewRESTHelper(client, mapping)
+						obj, err := restHelper.Get(namespace, "", labelSelector)
+						checkErr(err)
+						var objectsName []string
+						extractItems(obj, &objectsName)
+						for _, objectName := range objectsName {
+							RESTCallData = append(RESTCallData, *NewRESTCallItem(mapping, client, namespace, objectName))
+						}
+					}
+				}
 			}
 
 			errs := util.ErrorList{}
-			for _, name := range items {
-				err = kubectl.NewRESTHelper(client, mapping).Delete(namespace, name)
+			for _, r := range RESTCallData {
+				err := kubectl.NewRESTHelper(r.Client, r.Mapping).Delete(r.Namespace, r.Name)
 				if err != nil {
-					errs = append(errs, fmt.Errorf("Unable to delete %s. %v", name, err))
+					errs = append(errs, fmt.Errorf("Unable to delete %s. %v", r.Name, err))
 					continue
 				}
-				fmt.Fprintf(out, "%s\n", name)
+				fmt.Fprintf(out, "%s\n", r.Name)
 			}
 
 			for _, e := range errs {

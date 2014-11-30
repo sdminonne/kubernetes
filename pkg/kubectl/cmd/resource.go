@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api/meta"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/kubectl"
@@ -30,7 +31,7 @@ import (
 // the fields necessary to uniquely locate a resource. Displays a usageError if that contract is
 // not satisfied, or a generic error if any other problems occur.
 func ResourceFromArgsOrFile(cmd *cobra.Command, args []string, filename string, typer runtime.ObjectTyper, mapper meta.RESTMapper) (mapping *meta.RESTMapping, namespace, name string) {
-	// If command line args are passed in, use those preferentially.
+
 	if len(args) == 1 {
 		resource := kubectl.ExpandResourceShortcut(args[0])
 		if len(resource) == 0 {
@@ -84,6 +85,7 @@ func ResourceFromArgsOrFile(cmd *cobra.Command, args []string, filename string, 
 // to uniquely locate a resource. Displays a usageError if that contract is not satisfied, or
 // a generic error if any other problems occur.
 func ResourceFromArgs(cmd *cobra.Command, args []string, mapper meta.RESTMapper) (mapping *meta.RESTMapping, namespace, name string) {
+
 	if len(args) != 2 {
 		usageError(cmd, "Must provide resource and name command line params")
 	}
@@ -175,4 +177,17 @@ func CompareNamespaceFromFile(cmd *cobra.Command, namespace string) error {
 		}
 	}
 	return nil
+}
+
+func ExtractEventuallyCommaSeparatedArgs(args []string) []string {
+	var extractedArgs []string
+	isComma := func(c rune) bool {
+		return c == ','
+	}
+	for _, arg := range args {
+		for _, value := range strings.FieldsFunc(arg, isComma) {
+			extractedArgs = append(extractedArgs, value)
+		}
+	}
+	return extractedArgs
 }
