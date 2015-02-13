@@ -43,10 +43,10 @@ This design proposes to modify json/yaml file to add a new block. The new block 
 ```
 
 Some explanation about the new block:
-The are two kinds of statement `env` and `volume`.
-* `env` generates environment variables to be injected at the bootstrap of the container.
+The are two kind of statement `env` and `volume`.
+* `env` permits to generate environment variables to be injected at the bootstrap of the container.
 * `volume` permits to create a file to be mounted at the `path` values with the name specified with `filename` value.
-the `from` value for the moment could be only `labels` but in theory it could be to any `[metadata](/docs/api-conventions.md#metadata)`. So in theory it could be for example  `annotations`, `creationTimestamp`, `labels`, `namespace`, `name`, `resourceVersion`, `uid`.
+the `from` value for the moment could be only `labels` but in theory it could bet set to any `[metadata](/docs/api-conventions.md#metadata)`. So in theory it couldbe for example  `annotations`, `creationTimestamp`, `labels`, `namespace`, `name`, `resourceVersion`, `uid`.
 
 
 ## Limitations
