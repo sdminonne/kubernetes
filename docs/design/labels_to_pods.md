@@ -6,7 +6,7 @@ A proposal to supply an easy-to-use mechanism to propagate client attributes sto
 
 ## Background
 
-Today Kubernetes [labels](/docs/labels.md) allow user to decorate resources. Since a resource can bring different labels, it may belong to multiple sub-set of the cluster. More specifically labelling a pod, user can add some functional information the application running in it. For example an application may need to be aware of the labels assigned to the pod or the replication controller driving the pods (like prefix logging entries to aggregate information for monitoring purpouse).
+Today Kubernetes [labels](/docs/labels.md) allows users to decorate resources. Since a resource can bring different labels, it may belong to multiple sub-sets of the cluster. More specifically, by labelling a pod, a user can supply  functional information to the application running inside it. For example an application may need to be aware of the labels assigned to the pod or the replication controller driving the pods (like prefix logging entries to aggregate information for monitoring purpouse).
 
 ## Proposed Design
 
@@ -43,12 +43,14 @@ This design proposes to modify json/yaml file to add a new block. The new block 
 ```
 
 Some explanation about the new block:
-The are two kind of statement `env` and `volume`.
-* `env` permits to generate environment variables to be injected at the bootstrap of the container.
+The are two kinds of statement `env` and `volume`:
+* `env` generates environment variables to be injected at the bootstrap of the container.
 * `volume` permits to create a file to be mounted at the `path` values with the name specified with `filename` value.
-the `from` value for the moment could be only `labels` but in theory it could bet set to any `[metadata](/docs/api-conventions.md#metadata)`. So in theory it couldbe for example  `annotations`, `creationTimestamp`, `labels`, `namespace`, `name`, `resourceVersion`, `uid`.
+the `from` value for the moment could be only `labels` but in theory it could bet set to any `[metadata](/docs/api-conventions.md#metadata)`. So in theory it could be for example  `annotations`, `creationTimestamp`, `labels`, `namespace`, `name`, `resourceVersion`, `uid`.
 
 
 ## Limitations
 
-Limitations are obviously that both `env` and `volume` can be generated at container. While, for example, labels can be modified on the fly (see `kubectl label` command) the labels in env vars couldn't be modified at runtime. This is slightly different for `/etc/labels` file even if at the moment this is not supported see [#560](https://github.com/GoogleCloudPlatform/kubernetes/issues/560)
+Labels can be modified on the fly (see `kubectl label` command), however:
+* While the `/etc/labels` file could be regenerated on the fly, volumes are currently run-once, so this will not be supported - see [#560](https://github.com/GoogleCloudPlatform/kubernetes/issues/560).
+* Environment variables cannot be modified during runtime, so changes to labels would not be taken into account during the lifetime of a container.
