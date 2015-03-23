@@ -13,8 +13,10 @@ Several features also already exist that could be used by external tools to trig
 
 ## Motivation
 
-The main goal is to provide a new controller typewith basic features, that is able to periodically trigger the creation of a new pod (based on its associated pod template) to be scheduled on one available minion and to track its outcome.
-A time-based scheduling mechanism will be implemented first. Other possible job scheduling conditions (like for instance successfully completion of other scheduled jobs) could be introduced in latter stages. 
+The main goal is to provide a new controller type with time scheduler features. The job controller is able to periodically trigger the creation of a new pod (based on its associated pod template) to be scheduled on one available minion and to track its outcome.
+A time-based scheduling mechanism will be implemented first. Other possible job scheduling conditions (like for instance successfully completion of other scheduled jobs) could be introduced in later. 
+
+The proposal is 
 
 ## Job controller basic definition
 
@@ -49,9 +51,9 @@ The new controller json definition for a basic implementation will have the foll
 }
 ```
 
-New introduced part is mainly the schedulePolicy struct, that in a first version can specify the time schedule (using iso 8601 notation), the maximal number of retries for a failing job run and a maximal execution time per pod run. Reaching this execution time-out should not lead to a restart attempt of the scheduled pod (job run will be reported with a failed status)
+New introduced part is mainly the schedulePolicy struct, that in a first version can specify the time schedule ([using iso 8601 notation](http://en.wikipedia.org/wiki/ISO_8601)), the maximal number of retries for a failing job run and a maximal execution time per pod run. Reaching this execution time-out should not lead to a restart attempt of the scheduled pod (job run will be reported with a failed status)
 
-Regarding restart policy, it could come in handy to allow failing containers within a running pod managed by a job controller to be restarted a limited number of time in case of execution failure. The OnFailure restart policy defined at pod spec level can be extended to carry that new field, knowing that the restart count for a  given container within a running pod is already available and thus could be used by the kubelet to take this maximal restart field into account.
+Regarding restart policy, it could come in handy to allow failing containers within a running pod managed by a job controller to be restarted a limited number of time in case of execution failure. The _OnFailure_ restart policy defined at pod spec level can be extended to carry that new field, knowing that the restart count for a  given container within a running pod is already available and thus could be used by the kubelet to take this maximal restart field into account.
 
 Job controller has the responsibility to advertise the pod completion status (success or failure) using events, and to delete it from the pods registry. Collecting the standard output/error of pod's containers is not covered by this design (a common solution for containers started by any controller would be needed)
 
