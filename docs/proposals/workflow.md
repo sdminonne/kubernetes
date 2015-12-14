@@ -58,7 +58,7 @@ workflow functionality to some extent.
 * As a user I want to add delay to a specific workflow
 * As a user I want to add restart a workflow.
 * As a user I want to delete a workflow (eventually cascading to running jobs).
-* As a user I want to debug a workflow (ability to track failure, and to understand causalities).
+* As a user I want to debug a workflow (ability to track failure).
 
 ## Related
 
@@ -70,16 +70,16 @@ workflow functionality to some extent.
 
 This proposal introduces a new REST resource `Workflow`. A `Workflow` is represented as
 [graph](https://en.wikipedia.org/wiki/Graph_(mathematics)), more specifically as a DAG.
-Vertices of the graph represent steps of the workflow.
-Edges of the graph represent the dependencies between vertices.
-Between two vertices only an edge is admitted (a `Workflow` is not a _multi-graph_).
-
+Vertices of the graph represent steps of the workflow. The workflow steps are represented using
+`WorkflowStep` resource.
+The edges of the graph are not represented explicitally but they are stored as a list of
+predecessors in each node/`WorkflowStep`.
 
 ### Workflow
 
 A new resource will be introduced in API. A `Workflow` is
-a graph of. In the simplest case it's a a graph of `Job` but it can also
-be a graph of other entity (for example cross-cluster object or other `Workflow`).
+a graph. In the simplest case it's a a graph of `Job` but it can also
+be a graph of other entity (for example cross-cluster object or others `Workflow`).
 
 ```go
 // Workflow is a directed acyclic graph
@@ -111,19 +111,21 @@ type WorkflowSpec struct {
 	UniqueLabelKey string `json:"uniqueLabelKey"`
 
 	// Steps contains the vertices of the workflow graph.
-	Steps map[WorkflowStepIdentifer]WorkflowStep `json:"vertices,omitempty"`
+	Steps map[WorkflowStepIdentifer]WorkflowStep `json:"steps,omitempty"`
 }
-
 ```
+
 
 * `spec.uniqueLabelKey`: this string is the key of the label to prevent resource ownership clashing
 It must be unique across the cluster. If not supplied k8s will generate one. It will
 be considered a _user error_ to supply an already in use key.
-* `spec.vertices`: is a map. The key of the map is a `WorkflowStepIdentifier`.
+* `spec.steps`: is a map. The key of the map is a `WorkflowStepIdentifier` (basically a string).
 The value of the map is a `WorkfloStep`.
 
 
-### `WorkflowStep`
+### `WorkflowStep`<sup>1</sup>
+
+The `WorkflowStep` resource acts as a `union` of `JobSpec` and `ObjectReference`.
 
 ```go
 const (
@@ -153,17 +155,13 @@ type WorkflowStep struct {
 	// Only one between External and Spec can be set.
 	ExternalRef api.ObjectReference `json:"externalRef,omitempty"`
 }
-
 ```
 
 * `workfloStep.predecessors` is a slice of `WorkflowStepIdentifier`. They are
-reference to the predecessor steps of the current one.
-* `workflowStep..jobSpec` contains the Job spec to be ran.
-* `workflowStep.externalRef` contains a reference to the external reference.
+reference to the predecessor steps.
+* `workflowStep.jobSpec` contains the Job spec to be executed.
+* `workflowStep.externalRef` contains a reference any external reference (for example another `Workflow`).
 * `workflowStep.triggeringPolicy` policy to trigger current workflow step (job or external reference).
-
-
-`
 
 
 ### `WorkflowStatus`
@@ -224,6 +222,9 @@ The events associated to `Workflow`s will be:
 * As a user I want to set an action when a workflow ends
 * As a user I want to set an action when a workflow starts
 
+<sup>1</sup>Something about naming: literature is full of different names, a commonly used
+name is: _task_ but since we plan to compose `Workflow`s (i.e. a task can execute
+another whole `Workflow`) the more generic word `Step` has been choosen.
 
 <!-- BEGIN MUNGE: GENERATED_ANALYTICS -->
 [![Analytics](https://kubernetes-site.appspot.com/UA-36037335-10/GitHub/docs/proposals/workflow.md?pixel)]()
