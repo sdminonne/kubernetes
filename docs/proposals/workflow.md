@@ -50,35 +50,32 @@ workflow functionality to some extent.
 
 ## Use Cases
 
-* As a user I want to be able to define a workflow
-* As a user I want to schedule a workflow via an ISO8601 specification.
+* As a user I want to be able to define a workflow.
 * As a user I want to compose workflows.
-* As a user I want the ability to re-execute the workflow
-* As a user I want to set a deadline on each stage of the workflow.
-* As a user I want to add delay to a specific workflow
-* As a user I want to add restart a workflow.
 * As a user I want to delete a workflow (eventually cascading to running jobs).
 * As a user I want to debug a workflow (ability to track failure).
 
-## Related
 
-* Initializer [#17305](https://github.com/kubernetes/kubernetes/pull/17305)
-* Quota [#13567](https://github.com/kubernetes/kubernetes/issues/13567)
+## Comunity discussions:
+
+
+
 
 
 ## Implementation
 
 This proposal introduces a new REST resource `Workflow`. A `Workflow` is represented as
 [graph](https://en.wikipedia.org/wiki/Graph_(mathematics)), more specifically as a DAG.
-Vertices of the graph represent steps of the workflow. The workflow steps are represented using
+Vertices of the graph represent steps of the workflow. The workflow steps are represented via a
 `WorkflowStep` resource.
 The edges of the graph are not represented explicitally but they are stored as a list of
-predecessors in each node/`WorkflowStep`.
+predecessors in each `WorkflowStep` (i.e. each node).
+
 
 ### Workflow
 
-A new resource will be introduced in API. A `Workflow` is
-a graph. In the simplest case it's a a graph of `Job` but it can also
+A new resource will be introduced in API. A `Workflow` is a graph.
+In the simplest case it's a a graph of `Job` but it can also
 be a graph of other entity (for example cross-cluster object or others `Workflow`).
 
 ```go
@@ -102,30 +99,19 @@ type Workflow struct {
 #### `WorkflowSpec`
 
 ```go
-// WorkflowStepIdentifer represents the name of the workflow step
-type WorkflowStepIdentifer string
-
 // WorkflowSpec contains Workflow specification
 type WorkflowSpec struct {
-	// Key of the selector added to Jobs to prevent overlapping
-	UniqueLabelKey string `json:"uniqueLabelKey"`
-
 	// Steps contains the vertices of the workflow graph.
-	Steps map[WorkflowStepIdentifer]WorkflowStep `json:"steps,omitempty"`
+	Steps []WorkflowStep `json:"steps,omitempty"`
 }
 ```
 
-
-* `spec.uniqueLabelKey`: this string is the key of the label to prevent resource ownership clashing
-It must be unique across the cluster. If not supplied k8s will generate one. It will
-be considered a _user error_ to supply an already in use key.
-* `spec.steps`: is a map. The key of the map is a `WorkflowStepIdentifier` (basically a string).
-The value of the map is a `WorkfloStep`.
+* `spec.steps`: is an array of `WorkflowStep`s.
 
 
 ### `WorkflowStep`<sup>1</sup>
 
-The `WorkflowStep` resource acts as a `union` of `JobSpec` and `ObjectReference`.
+The `WorkflowStep` resource acts as a [union](https://en.wikipedia.org/wiki/Union_type) of `JobSpec` and `ObjectReference`.
 
 ```go
 const (
@@ -138,14 +124,17 @@ const (
 	WaitAtLeastOnePredecessor PredecessorsTriggeringPolicy = "WaitAtLeastOnePredecessor"
 )
 
-// WorkflowStep contains necessary information for a node of the workflow
+// WorkflowStep contains necessary information to identifiy the node of the workflow graph
 type WorkflowStep struct {
-	// Spec contains the job specificaton that should be run in this Workflow.
+    // Id is the identifier of the current step
+    Id string  `json:"id,omitempty"`
+
+    // Spec contains the job specificaton that should be run in this Workflow.
 	// Only one between External and Spec can be set.
 	Spec JobSpec `json:"jobSpec,omitempty"`
 
-	// Predecessors contains references to the Predecessors WorkflowStep
-	Predecessors []WorkflowStepIdentifer `json:"predecessors,omitempty"`
+	// Predecessors contains references to the Id of the current WorkflowStep predecessors
+	Predecessors []string `json:"predecessors,omitempty"`
 
 	// TriggeringPolicy defines the policy to schedule the current Job.
 	// It can be set only if Spec is set.
@@ -157,10 +146,12 @@ type WorkflowStep struct {
 }
 ```
 
-* `workfloStep.predecessors` is a slice of `WorkflowStepIdentifier`. They are
-reference to the predecessor steps.
-* `workflowStep.jobSpec` contains the Job spec to be executed.
-* `workflowStep.externalRef` contains a reference any external reference (for example another `Workflow`).
+* `workflowStep.id` is a string to identify the current `Workflow`. The `workfowStep.id` is injected
+as a label in `metadata.annotations` in the `Job` created in the current step.
+* `workflowStep.predecessors` is a slice of string. They are `id`s of to the predecessor steps.
+* `workflowStep.jobSpec` contains the specification of the job to be executed.
+* `workflowStep.externalRef` contains a reference to external resources (for example another `Workflow`).
+The only requirement an the `externalRef` resource should have to be referenced is the ability to report the _complete_ status.
 * `workflowStep.triggeringPolicy` policy to trigger current workflow step (job or external reference).
 
 
@@ -169,7 +160,7 @@ reference to the predecessor steps.
 ```go
 // WorkflowStatus contains the current status of the Workflow
 type WorkflowStatus struct {
-	Statuses map[WorkflowStepIdentifer]WorkflowStepStatus `json:statuses`
+	Statuses []WorkflowStepStatus `json:statuses`
 }
 
 // WorkflowStepStatus contains the status of a WorkflowStep
@@ -193,17 +184,7 @@ type WorkflowList struct {
 }
 ```
 
-### `JobConditionType`
-
-```go
-// These are valid conditions of a job.
-const (
-// JobWaiting means the job is waiting to be started
-	JobWaiting JobConditionType = "Waiting"
-)
-```
-
-* A new job condition will be added to `JobConditionType`.
+* `workfloStepStatus.jobStatus`: it contains the `Job` information to report current status of the _step_.
 
 ## Events
 
@@ -215,16 +196,35 @@ The events associated to `Workflow`s will be:
 
 ## Relevant use cases out of this proposal
 
-* As an admin I want to set quota on workflow resources per user.
-* As an admin I want to set quota on workflow resources per namespace.
-* As an admin I want to re-assign a workflow resoruce to another user.
-* As an admin I want to re-assign a workflow resource to another namespace.
-* As a user I want to set an action when a workflow ends
-* As a user I want to set an action when a workflow starts
+* As an admin I want to set quota on workflow resources
+[#13567](https://github.com/kubernetes/kubernetes/issues/13567).
+* As an admin I want to re-assign a workflow resource to another namespace/user<sup>2</sup>.
+* As a user I want to set an action when a workflow ends/start
+[#3585](https://github.com/kubernetes/kubernetes/issues/3585)
+
+## Interaction with other community discussion
+
+
+### Recurring `Workflow`
+
+One of the major functionality is missing here is the ability to set a recurring `Workflow` (cron-like),
+similar to the ScheduledJob [#11980](https://github.com/kubernetes/kubernetes/pull/11980) for `Job`.
+If the the scheduled job will be able to support different resources ([see]
+
+### Initializers
+
+[Initializer proposal #17305](https://github.com/kubernetes/kubernetes/pull/17305) is still under dicussion but the idea will be
+
+
+### Graceful and immediate termination
+
+`Workflow` should support _graceful and immediate termination_ [#1535](https://github.com/kubernetes/kubernetes/issues/1535).
+
 
 <sup>1</sup>Something about naming: literature is full of different names, a commonly used
 name is: _task_ but since we plan to compose `Workflow`s (i.e. a task can execute
 another whole `Workflow`) the more generic word `Step` has been choosen.
+<sup>2</sup>A very common feature in industrial strength workflow tools.
 
 <!-- BEGIN MUNGE: GENERATED_ANALYTICS -->
 [![Analytics](https://kubernetes-site.appspot.com/UA-36037335-10/GitHub/docs/proposals/workflow.md?pixel)]()
