@@ -37,7 +37,7 @@ Documentation for other releases can be found at
 A proposal to introduce [workflow](https://en.wikipedia.org/wiki/Workflow_management_system)
 functionality in kubernetes.
 Workflows (aka [DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph) workflows
-since jobs are organized in a Directed Acyclic Graph) are ubiquitous
+since _tasks_ are organized in a Directed Acyclic Graph) are ubiquitous
 in modern [job schedulers](https://en.wikipedia.org/wiki/Job_scheduler), see for example:
 
 * [luigi](https://github.com/spotify/luigi)
@@ -52,14 +52,46 @@ workflow functionality to some extent.
 
 * As a user I want to be able to define a workflow.
 * As a user I want to compose workflows.
-* As a user I want to delete a workflow (eventually cascading to running jobs).
+* As a user I want to delete a workflow (eventually cascading to running _tasks_).
 * As a user I want to debug a workflow (ability to track failure).
 
 
-## Comunity discussions:
+
+### Initializers
+
+In order to implement `Workflow`, one need to introduce the concept of _dependency_ between resources.
+Dependecies are _edges_ of the graph.
+_Dependecy_ are introduced by [initializers proposal #17305](https://github.com/kubernetes/kubernetes/pull/17305) as well.
+An _initializer_ is a dynamically registered object which implements a custom policy.
+The policy could be based on some dependencies. The  policy is applied before the resource is
+created (even API validated).
+Modifying the policy one may  defer creation of the resource until prerequisites are satisfied.
+Even if not completed [#17305](https://github.com/kubernetes/kubernetes/pull/17305) already introduces a
+_dependecy_ concept [see](https://github.com/kubernetes/kubernetes/pull/17305#discussion_r45007826)
+which could be reused to implement `Workflow`.
+
+```go
+type ObjectDependencies struct {
+    Initializers map[string]string `json:"initializers,omitempty"`
+    Finalizers map[string]string `json:"finalizers,omitempty"`
+    ExistenceDependencies []ObjectReference `json:"existenceDependencies,omitempty"`
+    ControllerRef *ObjectReference `json:"controllerRef,omitempty"`
+...
+}
+```
+
+### Recurring `Workflow` and `scheduledJob`
+
+One of the major functionality is missing here is the ability to set a recurring `Workflow` (cron-like),
+similar to the ScheduledJob [#11980](https://github.com/kubernetes/kubernetes/pull/11980) for `Job`.
+If the the scheduled job will be able
+to support [different resources](https://github.com/kubernetes/kubernetes/pull/11980#discussion_r46729699)
+`Workflow` will benefit of _schedule_ functionality of `Job`.
 
 
+### Graceful and immediate termination
 
+`Workflow` should support _graceful and immediate termination_ [#1535](https://github.com/kubernetes/kubernetes/issues/1535).
 
 
 ## Implementation
@@ -77,6 +109,7 @@ predecessors in each `WorkflowStep` (i.e. each node).
 A new resource will be introduced in API. A `Workflow` is a graph.
 In the simplest case it's a a graph of `Job` but it can also
 be a graph of other entity (for example cross-cluster object or others `Workflow`).
+
 
 ```go
 // Workflow is a directed acyclic graph
@@ -101,29 +134,28 @@ type Workflow struct {
 ```go
 // WorkflowSpec contains Workflow specification
 type WorkflowSpec struct {
+
+    // Optional duration in seconds the workflow needs to terminate gracefully. May be decreased in delete request.
+	// Value must be non-negative integer. The value zero indicates delete immediately.
+	// If this value is nil, the default grace period will be used instead.
+	// Set this value longer than the expected cleanup time for your workflow.
+    // If downstream resources (job, pod, etc.) define their TerminationGracePeriodSeconds
+    // the biggest is taken.
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+
 	// Steps contains the vertices of the workflow graph.
 	Steps []WorkflowStep `json:"steps,omitempty"`
 }
 ```
 
 * `spec.steps`: is an array of `WorkflowStep`s.
-
+* `spec.terminationGracePeriodSeconds`: is the terminationGracePeriodSeconds.
 
 ### `WorkflowStep`<sup>1</sup>
 
-The `WorkflowStep` resource acts as a [union](https://en.wikipedia.org/wiki/Union_type) of `JobSpec` and `ObjectReference`.
+The `WorkflowStep` resource acts as a [union](https://en.wikipedia.org/wiki/Tagged_union) of `JobSpec` and `ObjectReference`.
 
 ```go
-const (
-	// WaitAllPredecessors policy will start the job
-	// when all predecessors ran to complete
-	WaitAllPredecessors PredecessorsTriggeringPolicy = "WaitAllPredecessors"
-
-	// WaitAtLeastOnePredecessor policy wil start the job when at least
-	// one predecessor ran to complete
-	WaitAtLeastOnePredecessor PredecessorsTriggeringPolicy = "WaitAtLeastOnePredecessor"
-)
-
 // WorkflowStep contains necessary information to identifiy the node of the workflow graph
 type WorkflowStep struct {
     // Id is the identifier of the current step
@@ -133,27 +165,29 @@ type WorkflowStep struct {
 	// Only one between External and Spec can be set.
 	Spec JobSpec `json:"jobSpec,omitempty"`
 
-	// Predecessors contains references to the Id of the current WorkflowStep predecessors
-	Predecessors []string `json:"predecessors,omitempty"`
-
-	// TriggeringPolicy defines the policy to schedule the current Job.
-	// It can be set only if Spec is set.
-	TriggeringPolicy PredecessorsTriggeringPolicy `json:"triggeringPolicy,omitempty"`
+    // Dependecies represent dependecies of the current workflow step
+    Dependencies ObjectDependencies `json:"dependencies,omitempty"`
 
 	// External contains a reference to another schedulable resource.
-	// Only one between External and Spec can be set.
+	// Only one between ExternalRef and Spec can be set.
 	ExternalRef api.ObjectReference `json:"externalRef,omitempty"`
 }
 ```
 
 * `workflowStep.id` is a string to identify the current `Workflow`. The `workfowStep.id` is injected
 as a label in `metadata.annotations` in the `Job` created in the current step.
-* `workflowStep.predecessors` is a slice of string. They are `id`s of to the predecessor steps.
 * `workflowStep.jobSpec` contains the specification of the job to be executed.
 * `workflowStep.externalRef` contains a reference to external resources (for example another `Workflow`).
-The only requirement an the `externalRef` resource should have to be referenced is the ability to report the _complete_ status.
-* `workflowStep.triggeringPolicy` policy to trigger current workflow step (job or external reference).
 
+```go
+type ObjectDependencies struct {
+    ...
+    ...
+    ExistenceDependencies []ObjectReference `json:"existenceDependencies,omitempty"`
+    ControllerRef *ObjectReference `json:"controllerRef,omitempty"`
+    ...
+}
+```
 
 ### `WorkflowStatus`
 
@@ -201,25 +235,6 @@ The events associated to `Workflow`s will be:
 * As an admin I want to re-assign a workflow resource to another namespace/user<sup>2</sup>.
 * As a user I want to set an action when a workflow ends/start
 [#3585](https://github.com/kubernetes/kubernetes/issues/3585)
-
-## Interaction with other community discussion
-
-
-### Recurring `Workflow`
-
-One of the major functionality is missing here is the ability to set a recurring `Workflow` (cron-like),
-similar to the ScheduledJob [#11980](https://github.com/kubernetes/kubernetes/pull/11980) for `Job`.
-If the the scheduled job will be able to support different resources ([see]
-
-### Initializers
-
-[Initializer proposal #17305](https://github.com/kubernetes/kubernetes/pull/17305) is still under dicussion but the idea will be
-
-
-### Graceful and immediate termination
-
-`Workflow` should support _graceful and immediate termination_ [#1535](https://github.com/kubernetes/kubernetes/issues/1535).
-
 
 <sup>1</sup>Something about naming: literature is full of different names, a commonly used
 name is: _task_ but since we plan to compose `Workflow`s (i.e. a task can execute
