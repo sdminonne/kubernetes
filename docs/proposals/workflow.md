@@ -189,6 +189,14 @@ type ObjectDependencies struct {
 }
 ```
 
+*`dependencies.controllerRef`: will contain the policy to trigger current `WorkflowStep`
+
+For `Workflow` basic scenario 2 controllers should be implemented: `AllDependenciesRunToCompletion`,
+`AtLeastOneDependencyRunToCompletion`. This approach permits to implement other kind of triggering
+policy like for example data availability or other external event.
+
+
+
 ### `WorkflowStatus`
 
 ```go
