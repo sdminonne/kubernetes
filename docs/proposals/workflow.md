@@ -59,15 +59,15 @@ workflow functionality to some extent.
 
 ### Initializers
 
-In order to implement `Workflow`, one need to introduce the concept of _dependency_ between resources.
+In order to implement `Workflow`, one needs to introduce the concept of _dependency_ between resources.
 Dependecies are _edges_ of the graph.
-_Dependecy_ are introduced by [initializers proposal #17305](https://github.com/kubernetes/kubernetes/pull/17305) as well.
+_Dependency_ is introduced by the [initializers proposal #17305](https://github.com/kubernetes/kubernetes/pull/17305), and we would like to use this as the foundation for workflows.
 An _initializer_ is a dynamically registered object which implements a custom policy.
 The policy could be based on some dependencies. The  policy is applied before the resource is
 created (even API validated).
-Modifying the policy one may  defer creation of the resource until prerequisites are satisfied.
+By modifying the policy one may  defer creation of the resource until prerequisites are satisfied.
 Even if not completed [#17305](https://github.com/kubernetes/kubernetes/pull/17305) already introduces a
-_dependecy_ concept [see](https://github.com/kubernetes/kubernetes/pull/17305#discussion_r45007826)
+_dependency_ concept ([see this comment](https://github.com/kubernetes/kubernetes/pull/17305#discussion_r45007826))
 which could be reused to implement `Workflow`.
 
 ```go
@@ -80,13 +80,13 @@ type ObjectDependencies struct {
 }
 ```
 
-### Recurring `Workflow` and `scheduledJob`
+### Recurring `Workflow` and `ScheduledJob`
 
-One of the major functionality is missing here is the ability to set a recurring `Workflow` (cron-like),
-similar to the ScheduledJob [#11980](https://github.com/kubernetes/kubernetes/pull/11980) for `Job`.
-If the the scheduled job will be able
-to support [different resources](https://github.com/kubernetes/kubernetes/pull/11980#discussion_r46729699)
-`Workflow` will benefit of _schedule_ functionality of `Job`.
+One of the major functionalities missing here is the ability to set a recurring `Workflow` (cron-like),
+similar to the `ScheduledJob` [#11980](https://github.com/kubernetes/kubernetes/pull/11980) for `Job`.
+If the scheduled job is able
+to support [various resources](https://github.com/kubernetes/kubernetes/pull/11980#discussion_r46729699)
+`Workflow` will benefit from the _schedule_ functionality of `Job`.
 
 
 ### Graceful and immediate termination
@@ -96,19 +96,19 @@ to support [different resources](https://github.com/kubernetes/kubernetes/pull/1
 
 ## Implementation
 
-This proposal introduces a new REST resource `Workflow`. A `Workflow` is represented as
+This proposal introduces a new REST resource `Workflow`. A `Workflow` is represented as a
 [graph](https://en.wikipedia.org/wiki/Graph_(mathematics)), more specifically as a DAG.
 Vertices of the graph represent steps of the workflow. The workflow steps are represented via a
 `WorkflowStep` resource.
-The edges of the graph are not represented explicitally but they are stored as a list of
+The edges of the graph are not represented explicitly - rather they are stored as a list of
 predecessors in each `WorkflowStep` (i.e. each node).
 
 
 ### Workflow
 
-A new resource will be introduced in API. A `Workflow` is a graph.
-In the simplest case it's a a graph of `Job` but it can also
-be a graph of other entity (for example cross-cluster object or others `Workflow`).
+A new resource will be introduced in the API. A `Workflow` is a graph.
+In the simplest case it's a graph of `Job`s but it can also
+be a graph of other entities (for example cross-cluster objects or other `Workflow`s).
 
 
 ```go
@@ -189,11 +189,11 @@ type ObjectDependencies struct {
 }
 ```
 
-*`dependencies.controllerRef`: will contain the policy to trigger current `WorkflowStep`
+* `dependencies.controllerRef`: will contain the policy to trigger current `WorkflowStep`
 
 For `Workflow` basic scenario 2 controllers should be implemented: `AllDependenciesRunToCompletion`,
-`AtLeastOneDependencyRunToCompletion`. This approach permits to implement other kind of triggering
-policy like for example data availability or other external event.
+`AtLeastOneDependencyRunToCompletion`. This approach permits implementation of other kinds of triggering
+policies, like for example data availability or other external event.
 
 
 
@@ -226,7 +226,7 @@ type WorkflowList struct {
 }
 ```
 
-* `workfloStepStatus.jobStatus`: it contains the `Job` information to report current status of the _step_.
+* `workflowStepStatus.jobStatus`: contains the `Job` information to report current status of the _step_.
 
 ## Events
 
@@ -235,8 +235,9 @@ The events associated to `Workflow`s will be:
 * WorkflowCreated
 * WorkflowStarted
 * WorkflowEnded
+* WorkflowDeleted
 
-## Relevant use cases out of this proposal
+## Relevant use cases out of scope of this proposal
 
 * As an admin I want to set quota on workflow resources
 [#13567](https://github.com/kubernetes/kubernetes/issues/13567).
@@ -245,8 +246,9 @@ The events associated to `Workflow`s will be:
 [#3585](https://github.com/kubernetes/kubernetes/issues/3585)
 
 <sup>1</sup>Something about naming: literature is full of different names, a commonly used
-name is: _task_ but since we plan to compose `Workflow`s (i.e. a task can execute
-another whole `Workflow`) the more generic word `Step` has been choosen.
+name is _task_, but since we plan to compose `Workflow`s (i.e. a task can execute
+another whole `Workflow`) we have chosen the more generic word `Step`.
+
 <sup>2</sup>A very common feature in industrial strength workflow tools.
 
 <!-- BEGIN MUNGE: GENERATED_ANALYTICS -->
