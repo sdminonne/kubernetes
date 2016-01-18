@@ -1414,3 +1414,7 @@ func TestValidateConfigMapUpdate(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateWorkflow(t *testing.T) {
+	// TODO: @sdminonne finalize it
+}

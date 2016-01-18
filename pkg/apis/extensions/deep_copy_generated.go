@@ -495,6 +495,17 @@ func deepCopy_api_ObjectMeta(in api.ObjectMeta, out *api.ObjectMeta, c *conversi
 	return nil
 }
 
+func deepCopy_api_ObjectReference(in api.ObjectReference, out *api.ObjectReference, c *conversion.Cloner) error {
+	out.Kind = in.Kind
+	out.Namespace = in.Namespace
+	out.Name = in.Name
+	out.UID = in.UID
+	out.APIVersion = in.APIVersion
+	out.ResourceVersion = in.ResourceVersion
+	out.FieldPath = in.FieldPath
+	return nil
+}
+
 func deepCopy_api_PersistentVolumeClaimVolumeSource(in api.PersistentVolumeClaimVolumeSource, out *api.PersistentVolumeClaimVolumeSource, c *conversion.Cloner) error {
 	out.ClaimName = in.ClaimName
 	out.ReadOnly = in.ReadOnly
@@ -1525,6 +1536,26 @@ func deepCopy_extensions_NodeUtilization(in NodeUtilization, out *NodeUtilizatio
 	return nil
 }
 
+func deepCopy_extensions_ObjectDependencies(in ObjectDependencies, out *ObjectDependencies, c *conversion.Cloner) error {
+	if in.DependencyIDs != nil {
+		out.DependencyIDs = make([]string, len(in.DependencyIDs))
+		for i := range in.DependencyIDs {
+			out.DependencyIDs[i] = in.DependencyIDs[i]
+		}
+	} else {
+		out.DependencyIDs = nil
+	}
+	if in.ControllerRef != nil {
+		out.ControllerRef = new(api.ObjectReference)
+		if err := deepCopy_api_ObjectReference(*in.ControllerRef, out.ControllerRef, c); err != nil {
+			return err
+		}
+	} else {
+		out.ControllerRef = nil
+	}
+	return nil
+}
+
 func deepCopy_extensions_ReplicationControllerDummy(in ReplicationControllerDummy, out *ReplicationControllerDummy, c *conversion.Cloner) error {
 	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
 		return err
@@ -1664,6 +1695,130 @@ func deepCopy_extensions_ThirdPartyResourceList(in ThirdPartyResourceList, out *
 	return nil
 }
 
+func deepCopy_extensions_Workflow(in Workflow, out *Workflow, c *conversion.Cloner) error {
+	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_api_ObjectMeta(in.ObjectMeta, &out.ObjectMeta, c); err != nil {
+		return err
+	}
+	if in.Spec != nil {
+		out.Spec = new(WorkflowSpec)
+		if err := deepCopy_extensions_WorkflowSpec(*in.Spec, out.Spec, c); err != nil {
+			return err
+		}
+	} else {
+		out.Spec = nil
+	}
+	if err := deepCopy_extensions_WorkflowStatus(in.Status, &out.Status, c); err != nil {
+		return err
+	}
+	return nil
+}
+
+func deepCopy_extensions_WorkflowCondition(in WorkflowCondition, out *WorkflowCondition, c *conversion.Cloner) error {
+	out.Type = in.Type
+	out.Status = in.Status
+	if err := deepCopy_unversioned_Time(in.LastProbeTime, &out.LastProbeTime, c); err != nil {
+		return err
+	}
+	if err := deepCopy_unversioned_Time(in.LastTransitionTime, &out.LastTransitionTime, c); err != nil {
+		return err
+	}
+	out.Reason = in.Reason
+	out.Message = in.Message
+	return nil
+}
+
+func deepCopy_extensions_WorkflowList(in WorkflowList, out *WorkflowList, c *conversion.Cloner) error {
+	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_unversioned_ListMeta(in.ListMeta, &out.ListMeta, c); err != nil {
+		return err
+	}
+	if in.Items != nil {
+		out.Items = make([]Workflow, len(in.Items))
+		for i := range in.Items {
+			if err := deepCopy_extensions_Workflow(in.Items[i], &out.Items[i], c); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+func deepCopy_extensions_WorkflowSpec(in WorkflowSpec, out *WorkflowSpec, c *conversion.Cloner) error {
+	if err := deepCopy_api_ObjectMeta(in.ObjectMeta, &out.ObjectMeta, c); err != nil {
+		return err
+	}
+	if in.ActiveDeadlineSeconds != nil {
+		out.ActiveDeadlineSeconds = new(int64)
+		*out.ActiveDeadlineSeconds = *in.ActiveDeadlineSeconds
+	} else {
+		out.ActiveDeadlineSeconds = nil
+	}
+	if in.Steps != nil {
+		out.Steps = make(map[string]WorkflowStep)
+		for key, val := range in.Steps {
+			newVal := new(WorkflowStep)
+			if err := deepCopy_extensions_WorkflowStep(val, newVal, c); err != nil {
+				return err
+			}
+			out.Steps[key] = *newVal
+		}
+	} else {
+		out.Steps = nil
+	}
+	return nil
+}
+
+func deepCopy_extensions_WorkflowStatus(in WorkflowStatus, out *WorkflowStatus, c *conversion.Cloner) error {
+	if in.Conditions != nil {
+		out.Conditions = make([]WorkflowCondition, len(in.Conditions))
+		for i := range in.Conditions {
+			if err := deepCopy_extensions_WorkflowCondition(in.Conditions[i], &out.Conditions[i], c); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Conditions = nil
+	}
+	if in.Statuses != nil {
+		out.Statuses = make(map[string]api.ObjectReference)
+		for key, val := range in.Statuses {
+			newVal := new(api.ObjectReference)
+			if err := deepCopy_api_ObjectReference(val, newVal, c); err != nil {
+				return err
+			}
+			out.Statuses[key] = *newVal
+		}
+	} else {
+		out.Statuses = nil
+	}
+	return nil
+}
+
+func deepCopy_extensions_WorkflowStep(in WorkflowStep, out *WorkflowStep, c *conversion.Cloner) error {
+	if in.JobTemplate != nil {
+		out.JobTemplate = new(JobSpec)
+		if err := deepCopy_extensions_JobSpec(*in.JobTemplate, out.JobTemplate, c); err != nil {
+			return err
+		}
+	} else {
+		out.JobTemplate = nil
+	}
+	if err := deepCopy_api_ObjectReference(in.ExternalRef, &out.ExternalRef, c); err != nil {
+		return err
+	}
+	if err := deepCopy_extensions_ObjectDependencies(in.Dependencies, &out.Dependencies, c); err != nil {
+		return err
+	}
+	return nil
+}
+
 func deepCopy_intstr_IntOrString(in intstr.IntOrString, out *intstr.IntOrString, c *conversion.Cloner) error {
 	out.Type = in.Type
 	out.IntVal = in.IntVal
@@ -1703,6 +1858,7 @@ func init() {
 		deepCopy_api_NFSVolumeSource,
 		deepCopy_api_ObjectFieldSelector,
 		deepCopy_api_ObjectMeta,
+		deepCopy_api_ObjectReference,
 		deepCopy_api_PersistentVolumeClaimVolumeSource,
 		deepCopy_api_PodSecurityContext,
 		deepCopy_api_PodSpec,
@@ -1758,6 +1914,7 @@ func init() {
 		deepCopy_extensions_LabelSelector,
 		deepCopy_extensions_LabelSelectorRequirement,
 		deepCopy_extensions_NodeUtilization,
+		deepCopy_extensions_ObjectDependencies,
 		deepCopy_extensions_ReplicationControllerDummy,
 		deepCopy_extensions_RollingUpdateDeployment,
 		deepCopy_extensions_Scale,
@@ -1768,6 +1925,12 @@ func init() {
 		deepCopy_extensions_ThirdPartyResourceData,
 		deepCopy_extensions_ThirdPartyResourceDataList,
 		deepCopy_extensions_ThirdPartyResourceList,
+		deepCopy_extensions_Workflow,
+		deepCopy_extensions_WorkflowCondition,
+		deepCopy_extensions_WorkflowList,
+		deepCopy_extensions_WorkflowSpec,
+		deepCopy_extensions_WorkflowStatus,
+		deepCopy_extensions_WorkflowStep,
 		deepCopy_intstr_IntOrString,
 	)
 	if err != nil {

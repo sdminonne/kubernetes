@@ -627,3 +627,19 @@ func ValidateConfigMapUpdate(newCfg, oldCfg *extensions.ConfigMap) field.ErrorLi
 
 	return allErrs
 }
+
+// ValidateWorkflow
+func ValidateWorkflow(wfl *extensions.Workflow) field.ErrorList {
+	allErrs := field.ErrorList{}
+	// TODO: @sdminonne finalize it
+
+	allErrs = append(allErrs, ValidateWorkflowSpec(wfl.Spec)...)
+	return allErrs
+}
+
+// ValidateWorkflowSpec
+func ValidateWorkflowSpec(wspc *extensions.WorkflowSpec) field.ErrorList {
+	allErrs := field.ErrorList{}
+	// TODO: @sdminonne finalize it
+	return allErrs
+}

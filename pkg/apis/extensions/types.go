@@ -734,3 +734,88 @@ type ConfigMapList struct {
 	// Items is the list of ConfigMaps.
 	Items []ConfigMap `json:"items,omitempty"`
 }
+
+// Workflow implements
+type Workflow struct {
+	unversioned.TypeMeta `json:",inline"`
+
+	api.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec *WorkflowSpec `json:"spec,omitempty"`
+
+	Status WorkflowStatus `json:"status,omitempty"`
+}
+
+// WorkflowList implements list of Workflow.
+type WorkflowList struct {
+	unversioned.TypeMeta `json:",inline"`
+
+	// Standard list metadata
+	// More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata
+	unversioned.ListMeta `json:"metadata,omitempty"`
+
+	// Items is the list of Workflow
+	Items []Workflow `json:"items"`
+}
+
+// WorkflowSpec contains Workflow specification
+type WorkflowSpec struct {
+	// Standard object's metadata.
+	// More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata
+	api.ObjectMeta `json:"metadata,omitempty"`
+
+	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
+
+	Steps map[string]WorkflowStep `json:"steps,omitempty"`
+}
+
+// WorkflowStep contains necessary information to identifiy the node of the workflow graph
+type WorkflowStep struct {
+	// JobTemplate contains the job specificaton that should be run in this Workflow.
+	// Only one between externalRef and jobTemplate can be set.
+	JobTemplate *JobSpec `json:"jobTemplate,omitempty"`
+
+	// External contains a reference to another schedulable resource.
+	// Only one between ExternalRef and JobTemplate can be set.
+	ExternalRef api.ObjectReference `json:"externalRef,omitempty"`
+
+	// Dependecies represent dependecies of the current workflow step
+	Dependencies ObjectDependencies `json:"dependencies,omitempty"`
+}
+
+type ObjectDependencies struct {
+	// DependeciesRef is a slice of unique identifier of the step (key of the spec.steps map)
+	DependencyIDs []string             `json:"dependencyIDs,omitempty"`
+	ControllerRef *api.ObjectReference `json:"controllerRef,omitempty"`
+}
+
+type WorkflowConditionType string
+
+// These are valid conditions of a workflow.
+const (
+	// WorkflowComplete means the workflow has completed its execution.
+	WorkflowComplete WorkflowConditionType = "Complete"
+)
+
+type WorkflowCondition struct {
+	// Type of workflow condition, currently only Complete.
+	Type WorkflowConditionType `json:"type"`
+	// Status of the condition, one of True, False, Unknown.
+	Status api.ConditionStatus `json:"status"`
+	// Last time the condition was checked.
+	LastProbeTime unversioned.Time `json:"lastProbeTime,omitempty"`
+	// Last time the condition transited from one status to another.
+	LastTransitionTime unversioned.Time `json:"lastTransitionTime,omitempty"`
+	// (brief) reason for the condition's last transition.
+	Reason string `json:"reason,omitempty"`
+	// Human readable message indicating details about last transition.
+	Message string `json:"message,omitempty"`
+}
+
+type WorkflowStatus struct {
+	// Conditions represent the latest available observations of an object's current state.
+	Conditions []WorkflowCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+
+	// Statuses represent status of different steps
+	Statuses map[string]api.ObjectReference `json:statuses`
+}

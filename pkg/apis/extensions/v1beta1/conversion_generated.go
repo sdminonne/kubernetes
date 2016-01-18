@@ -748,6 +748,24 @@ func Convert_api_ObjectMeta_To_v1_ObjectMeta(in *api.ObjectMeta, out *v1.ObjectM
 	return autoConvert_api_ObjectMeta_To_v1_ObjectMeta(in, out, s)
 }
 
+func autoConvert_api_ObjectReference_To_v1_ObjectReference(in *api.ObjectReference, out *v1.ObjectReference, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*api.ObjectReference))(in)
+	}
+	out.Kind = in.Kind
+	out.Namespace = in.Namespace
+	out.Name = in.Name
+	out.UID = in.UID
+	out.APIVersion = in.APIVersion
+	out.ResourceVersion = in.ResourceVersion
+	out.FieldPath = in.FieldPath
+	return nil
+}
+
+func Convert_api_ObjectReference_To_v1_ObjectReference(in *api.ObjectReference, out *v1.ObjectReference, s conversion.Scope) error {
+	return autoConvert_api_ObjectReference_To_v1_ObjectReference(in, out, s)
+}
+
 func autoConvert_api_PersistentVolumeClaimVolumeSource_To_v1_PersistentVolumeClaimVolumeSource(in *api.PersistentVolumeClaimVolumeSource, out *v1.PersistentVolumeClaimVolumeSource, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*api.PersistentVolumeClaimVolumeSource))(in)
@@ -1905,6 +1923,24 @@ func autoConvert_v1_ObjectMeta_To_api_ObjectMeta(in *v1.ObjectMeta, out *api.Obj
 
 func Convert_v1_ObjectMeta_To_api_ObjectMeta(in *v1.ObjectMeta, out *api.ObjectMeta, s conversion.Scope) error {
 	return autoConvert_v1_ObjectMeta_To_api_ObjectMeta(in, out, s)
+}
+
+func autoConvert_v1_ObjectReference_To_api_ObjectReference(in *v1.ObjectReference, out *api.ObjectReference, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*v1.ObjectReference))(in)
+	}
+	out.Kind = in.Kind
+	out.Namespace = in.Namespace
+	out.Name = in.Name
+	out.UID = in.UID
+	out.APIVersion = in.APIVersion
+	out.ResourceVersion = in.ResourceVersion
+	out.FieldPath = in.FieldPath
+	return nil
+}
+
+func Convert_v1_ObjectReference_To_api_ObjectReference(in *v1.ObjectReference, out *api.ObjectReference, s conversion.Scope) error {
+	return autoConvert_v1_ObjectReference_To_api_ObjectReference(in, out, s)
 }
 
 func autoConvert_v1_PersistentVolumeClaimVolumeSource_To_api_PersistentVolumeClaimVolumeSource(in *v1.PersistentVolumeClaimVolumeSource, out *api.PersistentVolumeClaimVolumeSource, s conversion.Scope) error {
@@ -3237,6 +3273,34 @@ func Convert_extensions_NodeUtilization_To_v1beta1_NodeUtilization(in *extension
 	return autoConvert_extensions_NodeUtilization_To_v1beta1_NodeUtilization(in, out, s)
 }
 
+func autoConvert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies(in *extensions.ObjectDependencies, out *ObjectDependencies, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*extensions.ObjectDependencies))(in)
+	}
+	if in.DependencyIDs != nil {
+		out.DependencyIDs = make([]string, len(in.DependencyIDs))
+		for i := range in.DependencyIDs {
+			out.DependencyIDs[i] = in.DependencyIDs[i]
+		}
+	} else {
+		out.DependencyIDs = nil
+	}
+	// unable to generate simple pointer conversion for api.ObjectReference -> v1.ObjectReference
+	if in.ControllerRef != nil {
+		out.ControllerRef = new(v1.ObjectReference)
+		if err := Convert_api_ObjectReference_To_v1_ObjectReference(in.ControllerRef, out.ControllerRef, s); err != nil {
+			return err
+		}
+	} else {
+		out.ControllerRef = nil
+	}
+	return nil
+}
+
+func Convert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies(in *extensions.ObjectDependencies, out *ObjectDependencies, s conversion.Scope) error {
+	return autoConvert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies(in, out, s)
+}
+
 func autoConvert_extensions_ReplicationControllerDummy_To_v1beta1_ReplicationControllerDummy(in *extensions.ReplicationControllerDummy, out *ReplicationControllerDummy, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*extensions.ReplicationControllerDummy))(in)
@@ -3435,6 +3499,174 @@ func autoConvert_extensions_ThirdPartyResourceList_To_v1beta1_ThirdPartyResource
 
 func Convert_extensions_ThirdPartyResourceList_To_v1beta1_ThirdPartyResourceList(in *extensions.ThirdPartyResourceList, out *ThirdPartyResourceList, s conversion.Scope) error {
 	return autoConvert_extensions_ThirdPartyResourceList_To_v1beta1_ThirdPartyResourceList(in, out, s)
+}
+
+func autoConvert_extensions_Workflow_To_v1beta1_Workflow(in *extensions.Workflow, out *Workflow, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*extensions.Workflow))(in)
+	}
+	if err := api.Convert_unversioned_TypeMeta_To_unversioned_TypeMeta(&in.TypeMeta, &out.TypeMeta, s); err != nil {
+		return err
+	}
+	if err := Convert_api_ObjectMeta_To_v1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
+	// unable to generate simple pointer conversion for extensions.WorkflowSpec -> v1beta1.WorkflowSpec
+	if in.Spec != nil {
+		out.Spec = new(WorkflowSpec)
+		if err := Convert_extensions_WorkflowSpec_To_v1beta1_WorkflowSpec(in.Spec, out.Spec, s); err != nil {
+			return err
+		}
+	} else {
+		out.Spec = nil
+	}
+	if err := Convert_extensions_WorkflowStatus_To_v1beta1_WorkflowStatus(&in.Status, &out.Status, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Convert_extensions_Workflow_To_v1beta1_Workflow(in *extensions.Workflow, out *Workflow, s conversion.Scope) error {
+	return autoConvert_extensions_Workflow_To_v1beta1_Workflow(in, out, s)
+}
+
+func autoConvert_extensions_WorkflowCondition_To_v1beta1_WorkflowCondition(in *extensions.WorkflowCondition, out *WorkflowCondition, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*extensions.WorkflowCondition))(in)
+	}
+	out.Type = WorkflowConditionType(in.Type)
+	out.Status = v1.ConditionStatus(in.Status)
+	if err := api.Convert_unversioned_Time_To_unversioned_Time(&in.LastProbeTime, &out.LastProbeTime, s); err != nil {
+		return err
+	}
+	if err := api.Convert_unversioned_Time_To_unversioned_Time(&in.LastTransitionTime, &out.LastTransitionTime, s); err != nil {
+		return err
+	}
+	out.Reason = in.Reason
+	out.Message = in.Message
+	return nil
+}
+
+func Convert_extensions_WorkflowCondition_To_v1beta1_WorkflowCondition(in *extensions.WorkflowCondition, out *WorkflowCondition, s conversion.Scope) error {
+	return autoConvert_extensions_WorkflowCondition_To_v1beta1_WorkflowCondition(in, out, s)
+}
+
+func autoConvert_extensions_WorkflowList_To_v1beta1_WorkflowList(in *extensions.WorkflowList, out *WorkflowList, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*extensions.WorkflowList))(in)
+	}
+	if err := api.Convert_unversioned_TypeMeta_To_unversioned_TypeMeta(&in.TypeMeta, &out.TypeMeta, s); err != nil {
+		return err
+	}
+	if err := api.Convert_unversioned_ListMeta_To_unversioned_ListMeta(&in.ListMeta, &out.ListMeta, s); err != nil {
+		return err
+	}
+	if in.Items != nil {
+		out.Items = make([]Workflow, len(in.Items))
+		for i := range in.Items {
+			if err := Convert_extensions_Workflow_To_v1beta1_Workflow(&in.Items[i], &out.Items[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+func Convert_extensions_WorkflowList_To_v1beta1_WorkflowList(in *extensions.WorkflowList, out *WorkflowList, s conversion.Scope) error {
+	return autoConvert_extensions_WorkflowList_To_v1beta1_WorkflowList(in, out, s)
+}
+
+func autoConvert_extensions_WorkflowSpec_To_v1beta1_WorkflowSpec(in *extensions.WorkflowSpec, out *WorkflowSpec, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*extensions.WorkflowSpec))(in)
+	}
+	if err := Convert_api_ObjectMeta_To_v1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
+	if in.ActiveDeadlineSeconds != nil {
+		out.ActiveDeadlineSeconds = new(int64)
+		*out.ActiveDeadlineSeconds = *in.ActiveDeadlineSeconds
+	} else {
+		out.ActiveDeadlineSeconds = nil
+	}
+	if in.Steps != nil {
+		out.Steps = make(map[string]WorkflowStep)
+		for key, val := range in.Steps {
+			newVal := WorkflowStep{}
+			if err := Convert_extensions_WorkflowStep_To_v1beta1_WorkflowStep(&val, &newVal, s); err != nil {
+				return err
+			}
+			out.Steps[key] = newVal
+		}
+	} else {
+		out.Steps = nil
+	}
+	return nil
+}
+
+func Convert_extensions_WorkflowSpec_To_v1beta1_WorkflowSpec(in *extensions.WorkflowSpec, out *WorkflowSpec, s conversion.Scope) error {
+	return autoConvert_extensions_WorkflowSpec_To_v1beta1_WorkflowSpec(in, out, s)
+}
+
+func autoConvert_extensions_WorkflowStatus_To_v1beta1_WorkflowStatus(in *extensions.WorkflowStatus, out *WorkflowStatus, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*extensions.WorkflowStatus))(in)
+	}
+	if in.Conditions != nil {
+		out.Conditions = make([]WorkflowCondition, len(in.Conditions))
+		for i := range in.Conditions {
+			if err := Convert_extensions_WorkflowCondition_To_v1beta1_WorkflowCondition(&in.Conditions[i], &out.Conditions[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Conditions = nil
+	}
+	if in.Statuses != nil {
+		out.Statuses = make(map[string]v1.ObjectReference)
+		for key, val := range in.Statuses {
+			newVal := v1.ObjectReference{}
+			if err := Convert_api_ObjectReference_To_v1_ObjectReference(&val, &newVal, s); err != nil {
+				return err
+			}
+			out.Statuses[key] = newVal
+		}
+	} else {
+		out.Statuses = nil
+	}
+	return nil
+}
+
+func Convert_extensions_WorkflowStatus_To_v1beta1_WorkflowStatus(in *extensions.WorkflowStatus, out *WorkflowStatus, s conversion.Scope) error {
+	return autoConvert_extensions_WorkflowStatus_To_v1beta1_WorkflowStatus(in, out, s)
+}
+
+func autoConvert_extensions_WorkflowStep_To_v1beta1_WorkflowStep(in *extensions.WorkflowStep, out *WorkflowStep, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*extensions.WorkflowStep))(in)
+	}
+	// unable to generate simple pointer conversion for extensions.JobSpec -> v1beta1.JobSpec
+	if in.JobTemplate != nil {
+		out.JobTemplate = new(JobSpec)
+		if err := Convert_extensions_JobSpec_To_v1beta1_JobSpec(in.JobTemplate, out.JobTemplate, s); err != nil {
+			return err
+		}
+	} else {
+		out.JobTemplate = nil
+	}
+	if err := Convert_api_ObjectReference_To_v1_ObjectReference(&in.ExternalRef, &out.ExternalRef, s); err != nil {
+		return err
+	}
+	if err := Convert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies(&in.Dependencies, &out.Dependencies, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Convert_extensions_WorkflowStep_To_v1beta1_WorkflowStep(in *extensions.WorkflowStep, out *WorkflowStep, s conversion.Scope) error {
+	return autoConvert_extensions_WorkflowStep_To_v1beta1_WorkflowStep(in, out, s)
 }
 
 func autoConvert_v1beta1_APIVersion_To_extensions_APIVersion(in *APIVersion, out *extensions.APIVersion, s conversion.Scope) error {
@@ -4302,6 +4534,34 @@ func Convert_v1beta1_NodeUtilization_To_extensions_NodeUtilization(in *NodeUtili
 	return autoConvert_v1beta1_NodeUtilization_To_extensions_NodeUtilization(in, out, s)
 }
 
+func autoConvert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies(in *ObjectDependencies, out *extensions.ObjectDependencies, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*ObjectDependencies))(in)
+	}
+	if in.DependencyIDs != nil {
+		out.DependencyIDs = make([]string, len(in.DependencyIDs))
+		for i := range in.DependencyIDs {
+			out.DependencyIDs[i] = in.DependencyIDs[i]
+		}
+	} else {
+		out.DependencyIDs = nil
+	}
+	// unable to generate simple pointer conversion for v1.ObjectReference -> api.ObjectReference
+	if in.ControllerRef != nil {
+		out.ControllerRef = new(api.ObjectReference)
+		if err := Convert_v1_ObjectReference_To_api_ObjectReference(in.ControllerRef, out.ControllerRef, s); err != nil {
+			return err
+		}
+	} else {
+		out.ControllerRef = nil
+	}
+	return nil
+}
+
+func Convert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies(in *ObjectDependencies, out *extensions.ObjectDependencies, s conversion.Scope) error {
+	return autoConvert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies(in, out, s)
+}
+
 func autoConvert_v1beta1_ReplicationControllerDummy_To_extensions_ReplicationControllerDummy(in *ReplicationControllerDummy, out *extensions.ReplicationControllerDummy, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*ReplicationControllerDummy))(in)
@@ -4498,6 +4758,174 @@ func Convert_v1beta1_ThirdPartyResourceList_To_extensions_ThirdPartyResourceList
 	return autoConvert_v1beta1_ThirdPartyResourceList_To_extensions_ThirdPartyResourceList(in, out, s)
 }
 
+func autoConvert_v1beta1_Workflow_To_extensions_Workflow(in *Workflow, out *extensions.Workflow, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*Workflow))(in)
+	}
+	if err := api.Convert_unversioned_TypeMeta_To_unversioned_TypeMeta(&in.TypeMeta, &out.TypeMeta, s); err != nil {
+		return err
+	}
+	if err := Convert_v1_ObjectMeta_To_api_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
+	// unable to generate simple pointer conversion for v1beta1.WorkflowSpec -> extensions.WorkflowSpec
+	if in.Spec != nil {
+		out.Spec = new(extensions.WorkflowSpec)
+		if err := Convert_v1beta1_WorkflowSpec_To_extensions_WorkflowSpec(in.Spec, out.Spec, s); err != nil {
+			return err
+		}
+	} else {
+		out.Spec = nil
+	}
+	if err := Convert_v1beta1_WorkflowStatus_To_extensions_WorkflowStatus(&in.Status, &out.Status, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Convert_v1beta1_Workflow_To_extensions_Workflow(in *Workflow, out *extensions.Workflow, s conversion.Scope) error {
+	return autoConvert_v1beta1_Workflow_To_extensions_Workflow(in, out, s)
+}
+
+func autoConvert_v1beta1_WorkflowCondition_To_extensions_WorkflowCondition(in *WorkflowCondition, out *extensions.WorkflowCondition, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*WorkflowCondition))(in)
+	}
+	out.Type = extensions.WorkflowConditionType(in.Type)
+	out.Status = api.ConditionStatus(in.Status)
+	if err := api.Convert_unversioned_Time_To_unversioned_Time(&in.LastProbeTime, &out.LastProbeTime, s); err != nil {
+		return err
+	}
+	if err := api.Convert_unversioned_Time_To_unversioned_Time(&in.LastTransitionTime, &out.LastTransitionTime, s); err != nil {
+		return err
+	}
+	out.Reason = in.Reason
+	out.Message = in.Message
+	return nil
+}
+
+func Convert_v1beta1_WorkflowCondition_To_extensions_WorkflowCondition(in *WorkflowCondition, out *extensions.WorkflowCondition, s conversion.Scope) error {
+	return autoConvert_v1beta1_WorkflowCondition_To_extensions_WorkflowCondition(in, out, s)
+}
+
+func autoConvert_v1beta1_WorkflowList_To_extensions_WorkflowList(in *WorkflowList, out *extensions.WorkflowList, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*WorkflowList))(in)
+	}
+	if err := api.Convert_unversioned_TypeMeta_To_unversioned_TypeMeta(&in.TypeMeta, &out.TypeMeta, s); err != nil {
+		return err
+	}
+	if err := api.Convert_unversioned_ListMeta_To_unversioned_ListMeta(&in.ListMeta, &out.ListMeta, s); err != nil {
+		return err
+	}
+	if in.Items != nil {
+		out.Items = make([]extensions.Workflow, len(in.Items))
+		for i := range in.Items {
+			if err := Convert_v1beta1_Workflow_To_extensions_Workflow(&in.Items[i], &out.Items[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+func Convert_v1beta1_WorkflowList_To_extensions_WorkflowList(in *WorkflowList, out *extensions.WorkflowList, s conversion.Scope) error {
+	return autoConvert_v1beta1_WorkflowList_To_extensions_WorkflowList(in, out, s)
+}
+
+func autoConvert_v1beta1_WorkflowSpec_To_extensions_WorkflowSpec(in *WorkflowSpec, out *extensions.WorkflowSpec, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*WorkflowSpec))(in)
+	}
+	if err := Convert_v1_ObjectMeta_To_api_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
+	if in.ActiveDeadlineSeconds != nil {
+		out.ActiveDeadlineSeconds = new(int64)
+		*out.ActiveDeadlineSeconds = *in.ActiveDeadlineSeconds
+	} else {
+		out.ActiveDeadlineSeconds = nil
+	}
+	if in.Steps != nil {
+		out.Steps = make(map[string]extensions.WorkflowStep)
+		for key, val := range in.Steps {
+			newVal := extensions.WorkflowStep{}
+			if err := Convert_v1beta1_WorkflowStep_To_extensions_WorkflowStep(&val, &newVal, s); err != nil {
+				return err
+			}
+			out.Steps[key] = newVal
+		}
+	} else {
+		out.Steps = nil
+	}
+	return nil
+}
+
+func Convert_v1beta1_WorkflowSpec_To_extensions_WorkflowSpec(in *WorkflowSpec, out *extensions.WorkflowSpec, s conversion.Scope) error {
+	return autoConvert_v1beta1_WorkflowSpec_To_extensions_WorkflowSpec(in, out, s)
+}
+
+func autoConvert_v1beta1_WorkflowStatus_To_extensions_WorkflowStatus(in *WorkflowStatus, out *extensions.WorkflowStatus, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*WorkflowStatus))(in)
+	}
+	if in.Conditions != nil {
+		out.Conditions = make([]extensions.WorkflowCondition, len(in.Conditions))
+		for i := range in.Conditions {
+			if err := Convert_v1beta1_WorkflowCondition_To_extensions_WorkflowCondition(&in.Conditions[i], &out.Conditions[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Conditions = nil
+	}
+	if in.Statuses != nil {
+		out.Statuses = make(map[string]api.ObjectReference)
+		for key, val := range in.Statuses {
+			newVal := api.ObjectReference{}
+			if err := Convert_v1_ObjectReference_To_api_ObjectReference(&val, &newVal, s); err != nil {
+				return err
+			}
+			out.Statuses[key] = newVal
+		}
+	} else {
+		out.Statuses = nil
+	}
+	return nil
+}
+
+func Convert_v1beta1_WorkflowStatus_To_extensions_WorkflowStatus(in *WorkflowStatus, out *extensions.WorkflowStatus, s conversion.Scope) error {
+	return autoConvert_v1beta1_WorkflowStatus_To_extensions_WorkflowStatus(in, out, s)
+}
+
+func autoConvert_v1beta1_WorkflowStep_To_extensions_WorkflowStep(in *WorkflowStep, out *extensions.WorkflowStep, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*WorkflowStep))(in)
+	}
+	// unable to generate simple pointer conversion for v1beta1.JobSpec -> extensions.JobSpec
+	if in.JobTemplate != nil {
+		out.JobTemplate = new(extensions.JobSpec)
+		if err := Convert_v1beta1_JobSpec_To_extensions_JobSpec(in.JobTemplate, out.JobTemplate, s); err != nil {
+			return err
+		}
+	} else {
+		out.JobTemplate = nil
+	}
+	if err := Convert_v1_ObjectReference_To_api_ObjectReference(&in.ExternalRef, &out.ExternalRef, s); err != nil {
+		return err
+	}
+	if err := Convert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies(&in.Dependencies, &out.Dependencies, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Convert_v1beta1_WorkflowStep_To_extensions_WorkflowStep(in *WorkflowStep, out *extensions.WorkflowStep, s conversion.Scope) error {
+	return autoConvert_v1beta1_WorkflowStep_To_extensions_WorkflowStep(in, out, s)
+}
+
 func init() {
 	err := api.Scheme.AddGeneratedConversionFuncs(
 		autoConvert_api_AWSElasticBlockStoreVolumeSource_To_v1_AWSElasticBlockStoreVolumeSource,
@@ -4531,6 +4959,7 @@ func init() {
 		autoConvert_api_NFSVolumeSource_To_v1_NFSVolumeSource,
 		autoConvert_api_ObjectFieldSelector_To_v1_ObjectFieldSelector,
 		autoConvert_api_ObjectMeta_To_v1_ObjectMeta,
+		autoConvert_api_ObjectReference_To_v1_ObjectReference,
 		autoConvert_api_PersistentVolumeClaimVolumeSource_To_v1_PersistentVolumeClaimVolumeSource,
 		autoConvert_api_PodSpec_To_v1_PodSpec,
 		autoConvert_api_PodTemplateSpec_To_v1_PodTemplateSpec,
@@ -4581,6 +5010,7 @@ func init() {
 		autoConvert_extensions_LabelSelectorRequirement_To_v1beta1_LabelSelectorRequirement,
 		autoConvert_extensions_LabelSelector_To_v1beta1_LabelSelector,
 		autoConvert_extensions_NodeUtilization_To_v1beta1_NodeUtilization,
+		autoConvert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies,
 		autoConvert_extensions_ReplicationControllerDummy_To_v1beta1_ReplicationControllerDummy,
 		autoConvert_extensions_RollingUpdateDeployment_To_v1beta1_RollingUpdateDeployment,
 		autoConvert_extensions_ScaleSpec_To_v1beta1_ScaleSpec,
@@ -4591,6 +5021,12 @@ func init() {
 		autoConvert_extensions_ThirdPartyResourceData_To_v1beta1_ThirdPartyResourceData,
 		autoConvert_extensions_ThirdPartyResourceList_To_v1beta1_ThirdPartyResourceList,
 		autoConvert_extensions_ThirdPartyResource_To_v1beta1_ThirdPartyResource,
+		autoConvert_extensions_WorkflowCondition_To_v1beta1_WorkflowCondition,
+		autoConvert_extensions_WorkflowList_To_v1beta1_WorkflowList,
+		autoConvert_extensions_WorkflowSpec_To_v1beta1_WorkflowSpec,
+		autoConvert_extensions_WorkflowStatus_To_v1beta1_WorkflowStatus,
+		autoConvert_extensions_WorkflowStep_To_v1beta1_WorkflowStep,
+		autoConvert_extensions_Workflow_To_v1beta1_Workflow,
 		autoConvert_v1_AWSElasticBlockStoreVolumeSource_To_api_AWSElasticBlockStoreVolumeSource,
 		autoConvert_v1_Capabilities_To_api_Capabilities,
 		autoConvert_v1_CephFSVolumeSource_To_api_CephFSVolumeSource,
@@ -4621,6 +5057,7 @@ func init() {
 		autoConvert_v1_NFSVolumeSource_To_api_NFSVolumeSource,
 		autoConvert_v1_ObjectFieldSelector_To_api_ObjectFieldSelector,
 		autoConvert_v1_ObjectMeta_To_api_ObjectMeta,
+		autoConvert_v1_ObjectReference_To_api_ObjectReference,
 		autoConvert_v1_PersistentVolumeClaimVolumeSource_To_api_PersistentVolumeClaimVolumeSource,
 		autoConvert_v1_PodSpec_To_api_PodSpec,
 		autoConvert_v1_PodTemplateSpec_To_api_PodTemplateSpec,
@@ -4671,6 +5108,7 @@ func init() {
 		autoConvert_v1beta1_LabelSelector_To_extensions_LabelSelector,
 		autoConvert_v1beta1_ListOptions_To_api_ListOptions,
 		autoConvert_v1beta1_NodeUtilization_To_extensions_NodeUtilization,
+		autoConvert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies,
 		autoConvert_v1beta1_ReplicationControllerDummy_To_extensions_ReplicationControllerDummy,
 		autoConvert_v1beta1_RollingUpdateDeployment_To_extensions_RollingUpdateDeployment,
 		autoConvert_v1beta1_ScaleSpec_To_extensions_ScaleSpec,
@@ -4681,6 +5119,12 @@ func init() {
 		autoConvert_v1beta1_ThirdPartyResourceData_To_extensions_ThirdPartyResourceData,
 		autoConvert_v1beta1_ThirdPartyResourceList_To_extensions_ThirdPartyResourceList,
 		autoConvert_v1beta1_ThirdPartyResource_To_extensions_ThirdPartyResource,
+		autoConvert_v1beta1_WorkflowCondition_To_extensions_WorkflowCondition,
+		autoConvert_v1beta1_WorkflowList_To_extensions_WorkflowList,
+		autoConvert_v1beta1_WorkflowSpec_To_extensions_WorkflowSpec,
+		autoConvert_v1beta1_WorkflowStatus_To_extensions_WorkflowStatus,
+		autoConvert_v1beta1_WorkflowStep_To_extensions_WorkflowStep,
+		autoConvert_v1beta1_Workflow_To_extensions_Workflow,
 	)
 	if err != nil {
 		// If one of the conversion functions is malformed, detect it immediately.

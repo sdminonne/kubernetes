@@ -69,6 +69,8 @@ func addKnownTypes(scheme *runtime.Scheme) {
 		&ConfigMap{},
 		&ConfigMapList{},
 		&api.ExportOptions{},
+		&Workflow{},
+		&WorkflowList{},
 	)
 }
 
@@ -92,3 +94,5 @@ func (obj *Ingress) GetObjectKind() unversioned.ObjectKind                     {
 func (obj *IngressList) GetObjectKind() unversioned.ObjectKind                 { return &obj.TypeMeta }
 func (obj *ConfigMap) GetObjectKind() unversioned.ObjectKind                   { return &obj.TypeMeta }
 func (obj *ConfigMapList) GetObjectKind() unversioned.ObjectKind               { return &obj.TypeMeta }
+func (obj *Workflow) GetObjectKind() unversioned.ObjectKind                    { return &obj.TypeMeta }
+func (obj *WorkflowList) GetObjectKind() unversioned.ObjectKind                { return &obj.TypeMeta }

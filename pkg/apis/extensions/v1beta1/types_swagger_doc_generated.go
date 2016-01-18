@@ -437,6 +437,14 @@ func (NodeUtilization) SwaggerDoc() map[string]string {
 	return map_NodeUtilization
 }
 
+var map_ObjectDependencies = map[string]string{
+	"dependencyIDs": "DependeciesRef is a slice of unique identifier of the step (key of the spec.steps map)",
+}
+
+func (ObjectDependencies) SwaggerDoc() map[string]string {
+	return map_ObjectDependencies
+}
+
 var map_ReplicationControllerDummy = map[string]string{
 	"": "Dummy definition",
 }
@@ -537,6 +545,66 @@ var map_ThirdPartyResourceList = map[string]string{
 
 func (ThirdPartyResourceList) SwaggerDoc() map[string]string {
 	return map_ThirdPartyResourceList
+}
+
+var map_Workflow = map[string]string{
+	"": "Workflow implements",
+}
+
+func (Workflow) SwaggerDoc() map[string]string {
+	return map_Workflow
+}
+
+var map_WorkflowCondition = map[string]string{
+	"type":               "Type of workflow condition, currently only Complete.",
+	"status":             "Status of the condition, one of True, False, Unknown.",
+	"lastProbeTime":      "Last time the condition was checked.",
+	"lastTransitionTime": "Last time the condition transited from one status to another.",
+	"reason":             "(brief) reason for the condition's last transition.",
+	"message":            "Human readable message indicating details about last transition.",
+}
+
+func (WorkflowCondition) SwaggerDoc() map[string]string {
+	return map_WorkflowCondition
+}
+
+var map_WorkflowList = map[string]string{
+	"":         "WorkflowList implements list of Workflow.",
+	"metadata": "Standard list metadata More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata",
+	"items":    "Items is the list of Workflow",
+}
+
+func (WorkflowList) SwaggerDoc() map[string]string {
+	return map_WorkflowList
+}
+
+var map_WorkflowSpec = map[string]string{
+	"":         "WorkflowSpec contains Workflow specification",
+	"metadata": "Standard object's metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata",
+}
+
+func (WorkflowSpec) SwaggerDoc() map[string]string {
+	return map_WorkflowSpec
+}
+
+var map_WorkflowStatus = map[string]string{
+	"conditions": "Conditions represent the latest available observations of an object's current state.",
+	"Statuses":   "Statuses represent status of different steps",
+}
+
+func (WorkflowStatus) SwaggerDoc() map[string]string {
+	return map_WorkflowStatus
+}
+
+var map_WorkflowStep = map[string]string{
+	"":             "WorkflowStep contains necessary information to identifiy the node of the workflow graph",
+	"jobTemplate":  "JobTemplate contains the job specificaton that should be run in this Workflow. Only one between externalRef and jobTemplate can be set.",
+	"externalRef":  "External contains a reference to another schedulable resource. Only one between ExternalRef and JobTemplate can be set.",
+	"dependencies": "Dependecies represent dependecies of the current workflow step",
+}
+
+func (WorkflowStep) SwaggerDoc() map[string]string {
+	return map_WorkflowStep
 }
 
 // AUTO-GENERATED FUNCTIONS END HERE
