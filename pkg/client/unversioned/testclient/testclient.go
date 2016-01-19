@@ -337,6 +337,11 @@ func (c *FakeExperimental) ThirdPartyResources(namespace string) client.ThirdPar
 	return &FakeThirdPartyResources{Fake: c, Namespace: namespace}
 }
 
+func (c *FakeExperimental) Workflows(namespace string) client.WorkflowInterface {
+	panic("unimplemented")
+	//	return &FakeWorkflows{Fake: c, Namespace: namespace}
+}
+
 type FakeDiscovery struct {
 	*Fake
 }

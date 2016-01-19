@@ -410,6 +410,7 @@ var podColumns = []string{"NAME", "READY", "STATUS", "RESTARTS", "AGE"}
 var podTemplateColumns = []string{"TEMPLATE", "CONTAINER(S)", "IMAGE(S)", "PODLABELS"}
 var replicationControllerColumns = []string{"CONTROLLER", "CONTAINER(S)", "IMAGE(S)", "SELECTOR", "REPLICAS", "AGE"}
 var jobColumns = []string{"JOB", "CONTAINER(S)", "IMAGE(S)", "SELECTOR", "SUCCESSFUL"}
+var workflowColumns = []string{"WORKFLOW", "STEP(S)"}
 var serviceColumns = []string{"NAME", "CLUSTER_IP", "EXTERNAL_IP", "PORT(S)", "SELECTOR", "AGE"}
 var ingressColumns = []string{"NAME", "RULE", "BACKEND", "ADDRESS"}
 var endpointColumns = []string{"NAME", "ENDPOINTS", "AGE"}
@@ -442,6 +443,8 @@ func (h *HumanReadablePrinter) addDefaultHandlers() {
 	h.Handler(daemonSetColumns, printDaemonSetList)
 	h.Handler(jobColumns, printJob)
 	h.Handler(jobColumns, printJobList)
+	h.Handler(workflowColumns, printWorkflow)
+	h.Handler(workflowColumns, printWorkflowList)
 	h.Handler(serviceColumns, printService)
 	h.Handler(serviceColumns, printServiceList)
 	h.Handler(ingressColumns, printIngress)
@@ -788,6 +791,19 @@ func printJob(job *extensions.Job, w io.Writer, options printOptions) error {
 func printJobList(list *extensions.JobList, w io.Writer, options printOptions) error {
 	for _, job := range list.Items {
 		if err := printJob(&job, w, options); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printWorkflow(workflow *extensions.Workflow, w io.Writer, options printOptions) error {
+	return nil
+}
+
+func printWorkflowList(list *extensions.WorkflowList, w io.Writer, options printOptions) error {
+	for _, workflow := range list.Items {
+		if err := printWorkflow(&workflow, w, options); err != nil {
 			return err
 		}
 	}

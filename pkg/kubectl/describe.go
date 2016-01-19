@@ -91,6 +91,7 @@ func describerMap(c *client.Client) map[unversioned.GroupKind]Describer {
 		extensions.Kind("Deployment"):              &DeploymentDescriber{c},
 		extensions.Kind("Ingress"):                 &IngressDescriber{c},
 		extensions.Kind("ConfigMap"):               &ConfigMapDescriber{c},
+		extensions.Kind("Workflow"):                &WorkflowDescriber{c},
 	}
 
 	return m
@@ -1724,6 +1725,25 @@ func describeConfigMap(configMap *extensions.ConfigMap) (string, error) {
 
 		return nil
 	})
+}
+
+// WorkflowDescriber generates information about a Workflow
+type WorkflowDescriber struct {
+	client *client.Client
+}
+
+func (d *WorkflowDescriber) Describe(namespace, name string) (string, error) {
+	workflow, err := d.client.Extensions().Workflows(namespace).Get(name)
+	if err != nil {
+		return "", err
+	}
+	events, _ := d.client.Events(namespace).Search(workflow)
+
+	return describeWorkflow(workflow, events)
+}
+
+func describeWorkflow(w *extensions.Workflow, events *api.EventList) (string, error) {
+	return "describe workflow", nil
 }
 
 // newErrNoDescriber creates a new ErrNoDescriber with the names of the provided types.

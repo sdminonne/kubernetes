@@ -337,6 +337,7 @@ _kubectl_get()
     must_have_one_noun+=("service")
     must_have_one_noun+=("serviceaccount")
     must_have_one_noun+=("thirdpartyresource")
+    must_have_one_noun+=("workflow")
 }
 
 _kubectl_describe()
@@ -402,6 +403,7 @@ _kubectl_describe()
     must_have_one_noun+=("secret")
     must_have_one_noun+=("service")
     must_have_one_noun+=("serviceaccount")
+    must_have_one_noun+=("workflow")
 }
 
 _kubectl_create_namespace()
@@ -831,6 +833,7 @@ _kubectl_delete()
     must_have_one_noun+=("service")
     must_have_one_noun+=("serviceaccount")
     must_have_one_noun+=("thirdpartyresource")
+    must_have_one_noun+=("workflow")
 }
 
 _kubectl_edit()
@@ -1736,6 +1739,7 @@ _kubectl_label()
     must_have_one_noun+=("service")
     must_have_one_noun+=("serviceaccount")
     must_have_one_noun+=("thirdpartyresource")
+    must_have_one_noun+=("workflow")
 }
 
 _kubectl_annotate()
