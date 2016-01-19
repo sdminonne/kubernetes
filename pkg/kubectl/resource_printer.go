@@ -410,7 +410,7 @@ var podColumns = []string{"NAME", "READY", "STATUS", "RESTARTS", "AGE"}
 var podTemplateColumns = []string{"TEMPLATE", "CONTAINER(S)", "IMAGE(S)", "PODLABELS"}
 var replicationControllerColumns = []string{"CONTROLLER", "CONTAINER(S)", "IMAGE(S)", "SELECTOR", "REPLICAS", "AGE"}
 var jobColumns = []string{"JOB", "CONTAINER(S)", "IMAGE(S)", "SELECTOR", "SUCCESSFUL"}
-var workflowColumns = []string{"WORKFLOW", "STEP(S)"}
+var workflowColumns = []string{"WORKFLOW", "CONDITION"}
 var serviceColumns = []string{"NAME", "CLUSTER_IP", "EXTERNAL_IP", "PORT(S)", "SELECTOR", "AGE"}
 var ingressColumns = []string{"NAME", "RULE", "BACKEND", "ADDRESS"}
 var endpointColumns = []string{"NAME", "ENDPOINTS", "AGE"}
@@ -798,6 +798,25 @@ func printJobList(list *extensions.JobList, w io.Writer, options printOptions) e
 }
 
 func printWorkflow(workflow *extensions.Workflow, w io.Writer, options printOptions) error {
+	// name, condition
+	name := workflow.Name
+
+	//	namespace := workflow.Namespace
+	//	if options.withNamespace {
+	//		if _, err := fmt.Fprintf(w, "%s\t", namespace); err != nil {
+	//			return err
+	//		}
+	//	}
+
+	_, err := fmt.Fprintf(w, "%s\t", name)
+	if err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprint(w, appendLabels(workflow.Labels, options.columnLabels)); err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -128,6 +128,7 @@ __custom_func() {
    * secrets
    * serviceaccounts
    * services (aka 'svc')
+   * workflows
 `
 )
 

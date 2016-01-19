@@ -643,3 +643,15 @@ func ValidateWorkflowSpec(wspc *extensions.WorkflowSpec) field.ErrorList {
 	// TODO: @sdminonne finalize it
 	return allErrs
 }
+
+func ValidateWorkflowUpdate(job, oldJob *extensions.Workflow) field.ErrorList {
+	allErrs := field.ErrorList{}
+	// TODO: @sdminonne finalize it
+	return allErrs
+}
+
+func ValidateWorkflowUpdateStatus(job, oldJob *extensions.Workflow) field.ErrorList {
+	allErrs := field.ErrorList{}
+	// TODO: @sdminonne finalize it
+	return allErrs
+}

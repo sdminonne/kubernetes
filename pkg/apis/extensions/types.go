@@ -780,13 +780,7 @@ type WorkflowStep struct {
 	ExternalRef api.ObjectReference `json:"externalRef,omitempty"`
 
 	// Dependecies represent dependecies of the current workflow step
-	Dependencies ObjectDependencies `json:"dependencies,omitempty"`
-}
-
-type ObjectDependencies struct {
-	// DependeciesRef is a slice of unique identifier of the step (key of the spec.steps map)
-	DependencyIDs []string             `json:"dependencyIDs,omitempty"`
-	ControllerRef *api.ObjectReference `json:"controllerRef,omitempty"`
+	Dependencies []string `json:"dependencies,omitempty"`
 }
 
 type WorkflowConditionType string

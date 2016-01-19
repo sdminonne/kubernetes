@@ -3273,34 +3273,6 @@ func Convert_extensions_NodeUtilization_To_v1beta1_NodeUtilization(in *extension
 	return autoConvert_extensions_NodeUtilization_To_v1beta1_NodeUtilization(in, out, s)
 }
 
-func autoConvert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies(in *extensions.ObjectDependencies, out *ObjectDependencies, s conversion.Scope) error {
-	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
-		defaulting.(func(*extensions.ObjectDependencies))(in)
-	}
-	if in.DependencyIDs != nil {
-		out.DependencyIDs = make([]string, len(in.DependencyIDs))
-		for i := range in.DependencyIDs {
-			out.DependencyIDs[i] = in.DependencyIDs[i]
-		}
-	} else {
-		out.DependencyIDs = nil
-	}
-	// unable to generate simple pointer conversion for api.ObjectReference -> v1.ObjectReference
-	if in.ControllerRef != nil {
-		out.ControllerRef = new(v1.ObjectReference)
-		if err := Convert_api_ObjectReference_To_v1_ObjectReference(in.ControllerRef, out.ControllerRef, s); err != nil {
-			return err
-		}
-	} else {
-		out.ControllerRef = nil
-	}
-	return nil
-}
-
-func Convert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies(in *extensions.ObjectDependencies, out *ObjectDependencies, s conversion.Scope) error {
-	return autoConvert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies(in, out, s)
-}
-
 func autoConvert_extensions_ReplicationControllerDummy_To_v1beta1_ReplicationControllerDummy(in *extensions.ReplicationControllerDummy, out *ReplicationControllerDummy, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*extensions.ReplicationControllerDummy))(in)
@@ -3659,8 +3631,13 @@ func autoConvert_extensions_WorkflowStep_To_v1beta1_WorkflowStep(in *extensions.
 	if err := Convert_api_ObjectReference_To_v1_ObjectReference(&in.ExternalRef, &out.ExternalRef, s); err != nil {
 		return err
 	}
-	if err := Convert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies(&in.Dependencies, &out.Dependencies, s); err != nil {
-		return err
+	if in.Dependencies != nil {
+		out.Dependencies = make([]string, len(in.Dependencies))
+		for i := range in.Dependencies {
+			out.Dependencies[i] = in.Dependencies[i]
+		}
+	} else {
+		out.Dependencies = nil
 	}
 	return nil
 }
@@ -4534,34 +4511,6 @@ func Convert_v1beta1_NodeUtilization_To_extensions_NodeUtilization(in *NodeUtili
 	return autoConvert_v1beta1_NodeUtilization_To_extensions_NodeUtilization(in, out, s)
 }
 
-func autoConvert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies(in *ObjectDependencies, out *extensions.ObjectDependencies, s conversion.Scope) error {
-	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
-		defaulting.(func(*ObjectDependencies))(in)
-	}
-	if in.DependencyIDs != nil {
-		out.DependencyIDs = make([]string, len(in.DependencyIDs))
-		for i := range in.DependencyIDs {
-			out.DependencyIDs[i] = in.DependencyIDs[i]
-		}
-	} else {
-		out.DependencyIDs = nil
-	}
-	// unable to generate simple pointer conversion for v1.ObjectReference -> api.ObjectReference
-	if in.ControllerRef != nil {
-		out.ControllerRef = new(api.ObjectReference)
-		if err := Convert_v1_ObjectReference_To_api_ObjectReference(in.ControllerRef, out.ControllerRef, s); err != nil {
-			return err
-		}
-	} else {
-		out.ControllerRef = nil
-	}
-	return nil
-}
-
-func Convert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies(in *ObjectDependencies, out *extensions.ObjectDependencies, s conversion.Scope) error {
-	return autoConvert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies(in, out, s)
-}
-
 func autoConvert_v1beta1_ReplicationControllerDummy_To_extensions_ReplicationControllerDummy(in *ReplicationControllerDummy, out *extensions.ReplicationControllerDummy, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*ReplicationControllerDummy))(in)
@@ -4916,8 +4865,13 @@ func autoConvert_v1beta1_WorkflowStep_To_extensions_WorkflowStep(in *WorkflowSte
 	if err := Convert_v1_ObjectReference_To_api_ObjectReference(&in.ExternalRef, &out.ExternalRef, s); err != nil {
 		return err
 	}
-	if err := Convert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies(&in.Dependencies, &out.Dependencies, s); err != nil {
-		return err
+	if in.Dependencies != nil {
+		out.Dependencies = make([]string, len(in.Dependencies))
+		for i := range in.Dependencies {
+			out.Dependencies[i] = in.Dependencies[i]
+		}
+	} else {
+		out.Dependencies = nil
 	}
 	return nil
 }
@@ -5010,7 +4964,6 @@ func init() {
 		autoConvert_extensions_LabelSelectorRequirement_To_v1beta1_LabelSelectorRequirement,
 		autoConvert_extensions_LabelSelector_To_v1beta1_LabelSelector,
 		autoConvert_extensions_NodeUtilization_To_v1beta1_NodeUtilization,
-		autoConvert_extensions_ObjectDependencies_To_v1beta1_ObjectDependencies,
 		autoConvert_extensions_ReplicationControllerDummy_To_v1beta1_ReplicationControllerDummy,
 		autoConvert_extensions_RollingUpdateDeployment_To_v1beta1_RollingUpdateDeployment,
 		autoConvert_extensions_ScaleSpec_To_v1beta1_ScaleSpec,
@@ -5108,7 +5061,6 @@ func init() {
 		autoConvert_v1beta1_LabelSelector_To_extensions_LabelSelector,
 		autoConvert_v1beta1_ListOptions_To_api_ListOptions,
 		autoConvert_v1beta1_NodeUtilization_To_extensions_NodeUtilization,
-		autoConvert_v1beta1_ObjectDependencies_To_extensions_ObjectDependencies,
 		autoConvert_v1beta1_ReplicationControllerDummy_To_extensions_ReplicationControllerDummy,
 		autoConvert_v1beta1_RollingUpdateDeployment_To_extensions_RollingUpdateDeployment,
 		autoConvert_v1beta1_ScaleSpec_To_extensions_ScaleSpec,

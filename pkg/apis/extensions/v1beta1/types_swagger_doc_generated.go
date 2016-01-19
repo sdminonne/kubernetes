@@ -437,14 +437,6 @@ func (NodeUtilization) SwaggerDoc() map[string]string {
 	return map_NodeUtilization
 }
 
-var map_ObjectDependencies = map[string]string{
-	"dependencyIDs": "DependeciesRef is a slice of unique identifier of the step (key of the spec.steps map)",
-}
-
-func (ObjectDependencies) SwaggerDoc() map[string]string {
-	return map_ObjectDependencies
-}
-
 var map_ReplicationControllerDummy = map[string]string{
 	"": "Dummy definition",
 }

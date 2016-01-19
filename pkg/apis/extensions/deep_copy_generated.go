@@ -1536,26 +1536,6 @@ func deepCopy_extensions_NodeUtilization(in NodeUtilization, out *NodeUtilizatio
 	return nil
 }
 
-func deepCopy_extensions_ObjectDependencies(in ObjectDependencies, out *ObjectDependencies, c *conversion.Cloner) error {
-	if in.DependencyIDs != nil {
-		out.DependencyIDs = make([]string, len(in.DependencyIDs))
-		for i := range in.DependencyIDs {
-			out.DependencyIDs[i] = in.DependencyIDs[i]
-		}
-	} else {
-		out.DependencyIDs = nil
-	}
-	if in.ControllerRef != nil {
-		out.ControllerRef = new(api.ObjectReference)
-		if err := deepCopy_api_ObjectReference(*in.ControllerRef, out.ControllerRef, c); err != nil {
-			return err
-		}
-	} else {
-		out.ControllerRef = nil
-	}
-	return nil
-}
-
 func deepCopy_extensions_ReplicationControllerDummy(in ReplicationControllerDummy, out *ReplicationControllerDummy, c *conversion.Cloner) error {
 	if err := deepCopy_unversioned_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
 		return err
@@ -1813,8 +1793,13 @@ func deepCopy_extensions_WorkflowStep(in WorkflowStep, out *WorkflowStep, c *con
 	if err := deepCopy_api_ObjectReference(in.ExternalRef, &out.ExternalRef, c); err != nil {
 		return err
 	}
-	if err := deepCopy_extensions_ObjectDependencies(in.Dependencies, &out.Dependencies, c); err != nil {
-		return err
+	if in.Dependencies != nil {
+		out.Dependencies = make([]string, len(in.Dependencies))
+		for i := range in.Dependencies {
+			out.Dependencies[i] = in.Dependencies[i]
+		}
+	} else {
+		out.Dependencies = nil
 	}
 	return nil
 }
@@ -1914,7 +1899,6 @@ func init() {
 		deepCopy_extensions_LabelSelector,
 		deepCopy_extensions_LabelSelectorRequirement,
 		deepCopy_extensions_NodeUtilization,
-		deepCopy_extensions_ObjectDependencies,
 		deepCopy_extensions_ReplicationControllerDummy,
 		deepCopy_extensions_RollingUpdateDeployment,
 		deepCopy_extensions_Scale,

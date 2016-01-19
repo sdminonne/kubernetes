@@ -18,7 +18,17 @@ limitations under the License.
 // implementation for storing Workflow api objects.
 package etcd
 
-import etcdgeneric "k8s.io/kubernetes/pkg/registry/generic/etcd"
+import (
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/registry/generic"
+	etcdgeneric "k8s.io/kubernetes/pkg/registry/generic/etcd"
+	"k8s.io/kubernetes/pkg/registry/workflow"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/storage"
+)
 
 // rest implements a RESTStorage for workflows against etcd
 type REST struct {

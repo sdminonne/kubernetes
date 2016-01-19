@@ -66,6 +66,7 @@ import (
 	thirdpartyresourceetcd "k8s.io/kubernetes/pkg/registry/thirdpartyresource/etcd"
 	"k8s.io/kubernetes/pkg/registry/thirdpartyresourcedata"
 	thirdpartyresourcedataetcd "k8s.io/kubernetes/pkg/registry/thirdpartyresourcedata/etcd"
+	workflowetcd "k8s.io/kubernetes/pkg/registry/workflow/etcd"
 	"k8s.io/kubernetes/pkg/storage"
 	etcdutil "k8s.io/kubernetes/pkg/storage/etcd/util"
 	"k8s.io/kubernetes/pkg/util"
@@ -558,7 +559,7 @@ func (m *Master) thirdpartyapi(group, kind, version string) *apiserver.APIGroupV
 // getExperimentalResources returns the resources for extenstions api
 func (m *Master) getExtensionResources(c *Config) map[string]rest.Storage {
 	// All resources except these are disabled by default.
-	enabledResources := sets.NewString("jobs", "horizontalpodautoscalers", "ingresses", "configmaps")
+	enabledResources := sets.NewString("jobs", "horizontalpodautoscalers", "ingresses", "configmaps", "workflows")
 	resourceOverrides := m.ApiGroupVersionOverrides["extensions/v1beta1"].ResourceOverrides
 	isEnabled := func(resource string) bool {
 		// Check if the resource has been overriden.
@@ -622,6 +623,11 @@ func (m *Master) getExtensionResources(c *Config) map[string]rest.Storage {
 	}
 	if isEnabled("configmaps") {
 		storage["configmaps"] = configmapetcd.NewREST(dbClient("configmaps"), storageDecorator)
+	}
+	if isEnabled("workflows") {
+		workflow, workflowStatus := workflowetcd.NewREST(dbClient("workflows"), storageDecorator)
+		storage["workflows"] = workflow
+		storage["workflows/status"] = workflowStatus
 	}
 
 	return storage

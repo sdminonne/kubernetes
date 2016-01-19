@@ -18,7 +18,15 @@ package workflow
 
 import (
 	"fmt"
-	"strconv"
+
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/apis/extensions/validation"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/registry/generic"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/validation/field"
 )
 
 // workflowStrategy implements verification logic for Replication Controllers.
@@ -93,10 +101,8 @@ func (workflowStatusStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.O
 // WorkflowSelectableFields returns a field set that represents the object for matching purposes.
 func WorkflowToSelectableFields(workflow *extensions.Workflow) fields.Set {
 	objectMetaFieldsSet := generic.ObjectMetaFieldsSet(workflow.ObjectMeta, true)
-	specificFieldsSet := fields.Set{
-		"status.successful": strconv.Itoa(workflow.Status.Succeeded),
-	}
-	return generic.MergeFieldsSets(objectMetaFieldsSet, specificFieldsSet)
+	// @sdminonne: TODO: has Workflow any selectable fields?
+	return objectMetaFieldsSet
 }
 
 // MatchWorkflow is the filter used by the generic etcd backend to route
