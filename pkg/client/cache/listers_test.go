@@ -606,3 +606,5 @@ func TestStoreToServiceLister(t *testing.T) {
 		t.Errorf("Expected service %q, got %q", e, a)
 	}
 }
+
+// @sdminonne: add tests for StoreToWorkflowLister

@@ -26,6 +26,7 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/latest"
 	"k8s.io/kubernetes/pkg/api/validation"
+	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/client/cache"
 	"k8s.io/kubernetes/pkg/client/record"
 	client "k8s.io/kubernetes/pkg/client/unversioned"
@@ -419,4 +420,53 @@ func FilterActivePods(pods []api.Pod) []*api.Pod {
 		}
 	}
 	return result
+}
+
+type JobControlInterface interface {
+	// CreateJob
+	CreateJob(namespace string, template *extensions.JobSpec, object runtime.Object, key string) error
+	// DeleteJob
+	DeleteJob(namespace string, template *extensions.JobSpec, object runtime.Object) error
+}
+
+// RealJobControl is the default implementation of JobControlInterface
+type WorkflowJobControl struct {
+	KubeClient client.Interface
+	Recorder   record.EventRecorder
+}
+
+var _ JobControlInterface = &WorkflowJobControl{}
+
+func (w WorkflowJobControl) CreateJob(namespace string, template *extensions.JobSpec, object runtime.Object, key string) error {
+	// TODO: @sdminonne labels and annotations should be properly finalized
+	desiredLabels := make(map[string]string)
+	desiredAnnotations := make(map[string]string)
+	meta, err := api.ObjectMetaFor(object)
+	if err != nil {
+		return fmt.Errorf("object does not have ObjectMeta, %v", err)
+	}
+	prefix := meta.Name
+	job := &extensions.Job{
+		ObjectMeta: api.ObjectMeta{
+			Labels:       desiredLabels,
+			Annotations:  desiredAnnotations,
+			GenerateName: prefix,
+		},
+	}
+
+	if err := api.Scheme.Convert(&template, &job.Spec); err != nil {
+		return fmt.Errorf("unable to convert job template: %v", err)
+	}
+
+	if newJob, err := w.KubeClient.Extensions().Jobs(namespace).Create(job); err != nil {
+		w.Recorder.Eventf(object, api.EventTypeWarning, "FailedCreate", "Error creating: %v", err)
+		return fmt.Errorf("unable to create job: %v", err)
+	} else {
+		glog.V(4).Infof("Controller %v created job %v", meta.Name, newJob.Name)
+	}
+	return nil
+}
+
+func (w WorkflowJobControl) DeleteJob(namespace string, template *extensions.JobSpec, object runtime.Object) error {
+	return nil
 }

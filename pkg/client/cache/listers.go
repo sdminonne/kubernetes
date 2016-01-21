@@ -456,3 +456,49 @@ func (s *StoreToPVCFetcher) GetPersistentVolumeClaimInfo(namespace string, id st
 
 	return o.(*api.PersistentVolumeClaim), nil
 }
+
+// StoreToWorkflowLister gives a store List and Exists methods. The store must contain only Workflows.
+type StoreToWorkflowLister struct {
+	Store
+}
+
+func (s *StoreToWorkflowLister) Exists(workflow *extensions.Workflow) (bool, error) {
+	_, exists, err := s.Store.Get(workflow)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+// StoreToWorkflowLister lists all workflows in the store.
+func (s *StoreToWorkflowLister) List() (workflows extensions.WorkflowList, err error) {
+	for _, c := range s.Store.List() {
+		workflows.Items = append(workflows.Items, *(c.(*extensions.Workflow)))
+	}
+	return workflows, nil
+}
+
+// GetJobWorkflow
+func (s *StoreToWorkflowLister) GetJobWorkflows(job *extensions.Job) (workflows []extensions.Workflow, err error) {
+	var selector labels.Selector
+	var workflow extensions.Workflow
+
+	if len(job.Labels) == 0 {
+		err = fmt.Errorf("no workflows found for job %v because it has no labels", job.Name)
+		return
+	}
+	for _, m := range s.Store.List() {
+		workflow = *m.(*extensions.Workflow)
+		if workflow.Namespace != job.Namespace {
+			continue
+		}
+		selector, _ = extensions.LabelSelectorAsSelector(job.Spec.Selector)
+		if selector.Matches(labels.Set(job.Labels)) {
+			workflows = append(workflows, workflow)
+		}
+	}
+	if len(workflows) == 0 {
+		err = fmt.Errorf("could not find workflows for job %s in namespace %s with labels: %v", job.Name, job.Namespace, job.Labels)
+	}
+	return
+}

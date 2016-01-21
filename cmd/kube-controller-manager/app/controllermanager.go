@@ -53,6 +53,7 @@ import (
 	routecontroller "k8s.io/kubernetes/pkg/controller/route"
 	servicecontroller "k8s.io/kubernetes/pkg/controller/service"
 	serviceaccountcontroller "k8s.io/kubernetes/pkg/controller/serviceaccount"
+	"k8s.io/kubernetes/pkg/controller/workflow"
 	"k8s.io/kubernetes/pkg/healthz"
 	"k8s.io/kubernetes/pkg/serviceaccount"
 	"k8s.io/kubernetes/pkg/util"
@@ -239,6 +240,12 @@ func Run(s *options.CMServer) error {
 			glog.Infof("Starting deployment controller")
 			go deployment.NewDeploymentController(clientForUserAgentOrDie(*kubeconfig, "deployment-controller"), ResyncPeriod(s)).
 				Run(s.ConcurrentDeploymentSyncs, util.NeverStop)
+		}
+
+		if containsResource(resources, "workflows") {
+			glog.Infof("Starting job controller")
+			go workflow.NewWorkflowController(clientForUserAgentOrDie(*kubeconfig, "workflow-controller"), ResyncPeriod(s)).
+				Run(s.ConcurrentJobSyncs, util.NeverStop)
 		}
 	}
 
