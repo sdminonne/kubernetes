@@ -3628,8 +3628,14 @@ func autoConvert_extensions_WorkflowStep_To_v1beta1_WorkflowStep(in *extensions.
 	} else {
 		out.JobTemplate = nil
 	}
-	if err := Convert_api_ObjectReference_To_v1_ObjectReference(&in.ExternalRef, &out.ExternalRef, s); err != nil {
-		return err
+	// unable to generate simple pointer conversion for api.ObjectReference -> v1.ObjectReference
+	if in.ExternalRef != nil {
+		out.ExternalRef = new(v1.ObjectReference)
+		if err := Convert_api_ObjectReference_To_v1_ObjectReference(in.ExternalRef, out.ExternalRef, s); err != nil {
+			return err
+		}
+	} else {
+		out.ExternalRef = nil
 	}
 	if in.Dependencies != nil {
 		out.Dependencies = make([]string, len(in.Dependencies))
@@ -4862,8 +4868,14 @@ func autoConvert_v1beta1_WorkflowStep_To_extensions_WorkflowStep(in *WorkflowSte
 	} else {
 		out.JobTemplate = nil
 	}
-	if err := Convert_v1_ObjectReference_To_api_ObjectReference(&in.ExternalRef, &out.ExternalRef, s); err != nil {
-		return err
+	// unable to generate simple pointer conversion for v1.ObjectReference -> api.ObjectReference
+	if in.ExternalRef != nil {
+		out.ExternalRef = new(api.ObjectReference)
+		if err := Convert_v1_ObjectReference_To_api_ObjectReference(in.ExternalRef, out.ExternalRef, s); err != nil {
+			return err
+		}
+	} else {
+		out.ExternalRef = nil
 	}
 	if in.Dependencies != nil {
 		out.Dependencies = make([]string, len(in.Dependencies))

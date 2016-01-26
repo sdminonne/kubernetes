@@ -1829,8 +1829,13 @@ func deepCopy_v1beta1_WorkflowStep(in WorkflowStep, out *WorkflowStep, c *conver
 	} else {
 		out.JobTemplate = nil
 	}
-	if err := deepCopy_v1_ObjectReference(in.ExternalRef, &out.ExternalRef, c); err != nil {
-		return err
+	if in.ExternalRef != nil {
+		out.ExternalRef = new(v1.ObjectReference)
+		if err := deepCopy_v1_ObjectReference(*in.ExternalRef, out.ExternalRef, c); err != nil {
+			return err
+		}
+	} else {
+		out.ExternalRef = nil
 	}
 	if in.Dependencies != nil {
 		out.Dependencies = make([]string, len(in.Dependencies))

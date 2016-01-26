@@ -1790,8 +1790,13 @@ func deepCopy_extensions_WorkflowStep(in WorkflowStep, out *WorkflowStep, c *con
 	} else {
 		out.JobTemplate = nil
 	}
-	if err := deepCopy_api_ObjectReference(in.ExternalRef, &out.ExternalRef, c); err != nil {
-		return err
+	if in.ExternalRef != nil {
+		out.ExternalRef = new(api.ObjectReference)
+		if err := deepCopy_api_ObjectReference(*in.ExternalRef, out.ExternalRef, c); err != nil {
+			return err
+		}
+	} else {
+		out.ExternalRef = nil
 	}
 	if in.Dependencies != nil {
 		out.Dependencies = make([]string, len(in.Dependencies))

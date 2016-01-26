@@ -777,7 +777,7 @@ type WorkflowStep struct {
 
 	// External contains a reference to another schedulable resource.
 	// Only one between ExternalRef and JobTemplate can be set.
-	ExternalRef api.ObjectReference `json:"externalRef,omitempty"`
+	ExternalRef *api.ObjectReference `json:"externalRef,omitempty"`
 
 	// Dependecies represent dependecies of the current workflow step
 	Dependencies []string `json:"dependencies,omitempty"`
