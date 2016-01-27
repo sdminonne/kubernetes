@@ -99,7 +99,7 @@ func NewJobController(kubeClient client.Interface, resyncPeriod controller.Resyn
 		framework.ResourceEventHandlerFuncs{
 			AddFunc: jm.enqueueController,
 			UpdateFunc: func(old, cur interface{}) {
-				if job := cur.(*extensions.Job); !isJobFinished(job) {
+				if job := cur.(*extensions.Job); !IsJobFinished(job) {
 					jm.enqueueController(job)
 				}
 			},
@@ -332,7 +332,7 @@ func (jm *JobController) syncJob(key string) error {
 	}
 	if pastActiveDeadline(&job) {
 		// if job was finished previously, we don't want to redo the termination
-		if isJobFinished(&job) {
+		if IsJobFinished(&job) {
 			return nil
 		}
 		// TODO: below code should be replaced with pod termination resulting in
@@ -501,7 +501,8 @@ func filterPods(pods []api.Pod, phase api.PodPhase) int {
 	return result
 }
 
-func isJobFinished(j *extensions.Job) bool {
+// IsJobFinished detects if job run to completion
+func IsJobFinished(j *extensions.Job) bool {
 	for _, c := range j.Status.Conditions {
 		if (c.Type == extensions.JobComplete || c.Type == extensions.JobFailed) && c.Status == api.ConditionTrue {
 			return true

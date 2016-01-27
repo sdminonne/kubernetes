@@ -811,5 +811,13 @@ type WorkflowStatus struct {
 	Conditions []WorkflowCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// Statuses represent status of different steps
-	Statuses map[string]api.ObjectReference `json:statuses`
+	Statuses map[string]WorkflowStepStatus `json:statuses`
+}
+
+// WorkflowStepStatus contains necessary information for the step status
+type WorkflowStepStatus struct {
+	//
+	Complete bool `json:"complete"`
+	//
+	Reference api.ObjectReference `json:"reference"`
 }

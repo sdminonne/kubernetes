@@ -3597,10 +3597,10 @@ func autoConvert_extensions_WorkflowStatus_To_v1beta1_WorkflowStatus(in *extensi
 		out.Conditions = nil
 	}
 	if in.Statuses != nil {
-		out.Statuses = make(map[string]v1.ObjectReference)
+		out.Statuses = make(map[string]WorkflowStepStatus)
 		for key, val := range in.Statuses {
-			newVal := v1.ObjectReference{}
-			if err := Convert_api_ObjectReference_To_v1_ObjectReference(&val, &newVal, s); err != nil {
+			newVal := WorkflowStepStatus{}
+			if err := Convert_extensions_WorkflowStepStatus_To_v1beta1_WorkflowStepStatus(&val, &newVal, s); err != nil {
 				return err
 			}
 			out.Statuses[key] = newVal
@@ -3650,6 +3650,21 @@ func autoConvert_extensions_WorkflowStep_To_v1beta1_WorkflowStep(in *extensions.
 
 func Convert_extensions_WorkflowStep_To_v1beta1_WorkflowStep(in *extensions.WorkflowStep, out *WorkflowStep, s conversion.Scope) error {
 	return autoConvert_extensions_WorkflowStep_To_v1beta1_WorkflowStep(in, out, s)
+}
+
+func autoConvert_extensions_WorkflowStepStatus_To_v1beta1_WorkflowStepStatus(in *extensions.WorkflowStepStatus, out *WorkflowStepStatus, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*extensions.WorkflowStepStatus))(in)
+	}
+	out.Complete = in.Complete
+	if err := Convert_api_ObjectReference_To_v1_ObjectReference(&in.Reference, &out.Reference, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Convert_extensions_WorkflowStepStatus_To_v1beta1_WorkflowStepStatus(in *extensions.WorkflowStepStatus, out *WorkflowStepStatus, s conversion.Scope) error {
+	return autoConvert_extensions_WorkflowStepStatus_To_v1beta1_WorkflowStepStatus(in, out, s)
 }
 
 func autoConvert_v1beta1_APIVersion_To_extensions_APIVersion(in *APIVersion, out *extensions.APIVersion, s conversion.Scope) error {
@@ -4837,10 +4852,10 @@ func autoConvert_v1beta1_WorkflowStatus_To_extensions_WorkflowStatus(in *Workflo
 		out.Conditions = nil
 	}
 	if in.Statuses != nil {
-		out.Statuses = make(map[string]api.ObjectReference)
+		out.Statuses = make(map[string]extensions.WorkflowStepStatus)
 		for key, val := range in.Statuses {
-			newVal := api.ObjectReference{}
-			if err := Convert_v1_ObjectReference_To_api_ObjectReference(&val, &newVal, s); err != nil {
+			newVal := extensions.WorkflowStepStatus{}
+			if err := Convert_v1beta1_WorkflowStepStatus_To_extensions_WorkflowStepStatus(&val, &newVal, s); err != nil {
 				return err
 			}
 			out.Statuses[key] = newVal
@@ -4890,6 +4905,21 @@ func autoConvert_v1beta1_WorkflowStep_To_extensions_WorkflowStep(in *WorkflowSte
 
 func Convert_v1beta1_WorkflowStep_To_extensions_WorkflowStep(in *WorkflowStep, out *extensions.WorkflowStep, s conversion.Scope) error {
 	return autoConvert_v1beta1_WorkflowStep_To_extensions_WorkflowStep(in, out, s)
+}
+
+func autoConvert_v1beta1_WorkflowStepStatus_To_extensions_WorkflowStepStatus(in *WorkflowStepStatus, out *extensions.WorkflowStepStatus, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*WorkflowStepStatus))(in)
+	}
+	out.Complete = in.Complete
+	if err := Convert_v1_ObjectReference_To_api_ObjectReference(&in.Reference, &out.Reference, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Convert_v1beta1_WorkflowStepStatus_To_extensions_WorkflowStepStatus(in *WorkflowStepStatus, out *extensions.WorkflowStepStatus, s conversion.Scope) error {
+	return autoConvert_v1beta1_WorkflowStepStatus_To_extensions_WorkflowStepStatus(in, out, s)
 }
 
 func init() {
@@ -4990,6 +5020,7 @@ func init() {
 		autoConvert_extensions_WorkflowList_To_v1beta1_WorkflowList,
 		autoConvert_extensions_WorkflowSpec_To_v1beta1_WorkflowSpec,
 		autoConvert_extensions_WorkflowStatus_To_v1beta1_WorkflowStatus,
+		autoConvert_extensions_WorkflowStepStatus_To_v1beta1_WorkflowStepStatus,
 		autoConvert_extensions_WorkflowStep_To_v1beta1_WorkflowStep,
 		autoConvert_extensions_Workflow_To_v1beta1_Workflow,
 		autoConvert_v1_AWSElasticBlockStoreVolumeSource_To_api_AWSElasticBlockStoreVolumeSource,
@@ -5087,6 +5118,7 @@ func init() {
 		autoConvert_v1beta1_WorkflowList_To_extensions_WorkflowList,
 		autoConvert_v1beta1_WorkflowSpec_To_extensions_WorkflowSpec,
 		autoConvert_v1beta1_WorkflowStatus_To_extensions_WorkflowStatus,
+		autoConvert_v1beta1_WorkflowStepStatus_To_extensions_WorkflowStepStatus,
 		autoConvert_v1beta1_WorkflowStep_To_extensions_WorkflowStep,
 		autoConvert_v1beta1_Workflow_To_extensions_Workflow,
 	)

@@ -1806,10 +1806,10 @@ func deepCopy_v1beta1_WorkflowStatus(in WorkflowStatus, out *WorkflowStatus, c *
 		out.Conditions = nil
 	}
 	if in.Statuses != nil {
-		out.Statuses = make(map[string]v1.ObjectReference)
+		out.Statuses = make(map[string]WorkflowStepStatus)
 		for key, val := range in.Statuses {
-			newVal := new(v1.ObjectReference)
-			if err := deepCopy_v1_ObjectReference(val, newVal, c); err != nil {
+			newVal := new(WorkflowStepStatus)
+			if err := deepCopy_v1beta1_WorkflowStepStatus(val, newVal, c); err != nil {
 				return err
 			}
 			out.Statuses[key] = *newVal
@@ -1844,6 +1844,14 @@ func deepCopy_v1beta1_WorkflowStep(in WorkflowStep, out *WorkflowStep, c *conver
 		}
 	} else {
 		out.Dependencies = nil
+	}
+	return nil
+}
+
+func deepCopy_v1beta1_WorkflowStepStatus(in WorkflowStepStatus, out *WorkflowStepStatus, c *conversion.Cloner) error {
+	out.Complete = in.Complete
+	if err := deepCopy_v1_ObjectReference(in.Reference, &out.Reference, c); err != nil {
+		return err
 	}
 	return nil
 }
@@ -1960,6 +1968,7 @@ func init() {
 		deepCopy_v1beta1_WorkflowSpec,
 		deepCopy_v1beta1_WorkflowStatus,
 		deepCopy_v1beta1_WorkflowStep,
+		deepCopy_v1beta1_WorkflowStepStatus,
 		deepCopy_intstr_IntOrString,
 	)
 	if err != nil {

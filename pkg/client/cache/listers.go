@@ -390,6 +390,30 @@ func (s *StoreToJobLister) List() (jobs extensions.JobList, err error) {
 	return jobs, nil
 }
 
+// Jobs will look like the api pkg/client
+func (s *StoreToJobLister) Jobs(namespace string) storeJobsNamespacer {
+	return storeJobsNamespacer{s.Store, namespace}
+}
+
+type storeJobsNamespacer struct {
+	store     Store
+	namespace string
+}
+
+// List returns a list of jobs fromt he store
+func (s storeJobsNamespacer) List(selector labels.Selector) (jobs extensions.JobList, err error) {
+	list := extensions.JobList{}
+	for _, m := range s.store.List() {
+		job := m.(*extensions.Job)
+		if s.namespace == api.NamespaceAll || s.namespace == job.Namespace {
+			if selector.Matches(labels.Set(job.Labels)) {
+				list.Items = append(list.Items, *job)
+			}
+		}
+	}
+	return list, nil
+}
+
 // GetPodJobs returns a list of jobs managing a pod. Returns an error only if no matching jobs are found.
 func (s *StoreToJobLister) GetPodJobs(pod *api.Pod) (jobs []extensions.Job, err error) {
 	var selector labels.Selector
@@ -489,6 +513,7 @@ func (s *StoreToWorkflowLister) GetJobWorkflows(job *extensions.Job) (workflows 
 	}
 	for _, m := range s.Store.List() {
 		workflow = *m.(*extensions.Workflow)
+		glog.V(4).Infof("Found workflow %v retrieving from job %v", workflow.Name, job.Name)
 		if workflow.Namespace != job.Namespace {
 			continue
 		}

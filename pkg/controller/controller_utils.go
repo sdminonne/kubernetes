@@ -426,7 +426,7 @@ type JobControlInterface interface {
 	// CreateJob
 	CreateJob(namespace string, template *extensions.JobSpec, object runtime.Object, key string) error
 	// DeleteJob
-	DeleteJob(namespace string, template *extensions.JobSpec, object runtime.Object) error
+	DeleteJob(namespace, name string, object runtime.Object) error
 }
 
 // RealJobControl is the default implementation of JobControlInterface
@@ -437,15 +437,55 @@ type WorkflowJobControl struct {
 
 var _ JobControlInterface = &WorkflowJobControl{}
 
+func getJobsPrefix(controllerName string) string {
+	prefix := fmt.Sprintf("%s-", controllerName)
+	if ok, _ := validation.ValidateReplicationControllerName(prefix, true); !ok {
+		prefix = controllerName
+	}
+	return prefix
+}
+
+func getJobsLabelSet(object runtime.Object) labels.Set {
+	workflow := *object.(*extensions.Workflow)
+	desiredLabels := make(labels.Set)
+	for k, v := range workflow.Labels {
+		desiredLabels[k] = v
+	}
+	return desiredLabels
+}
+
+func getJobsAnnotationSet(object runtime.Object) (labels.Set, error) {
+	workflow := *object.(*extensions.Workflow)
+	desiredAnnotations := make(labels.Set)
+	for k, v := range workflow.Annotations {
+		desiredAnnotations[k] = v
+	}
+	createdByRef, err := api.GetReference(object)
+	if err != nil {
+		return desiredAnnotations, fmt.Errorf("unable to get controller reference: %v", err)
+	}
+	createdByRefJson, err := latest.GroupOrDie(api.GroupName).Codec.Encode(&api.SerializedReference{
+		Reference: *createdByRef,
+	})
+	if err != nil {
+		return desiredAnnotations, fmt.Errorf("unable to serialize controller reference: %v", err)
+	}
+	desiredAnnotations[CreatedByAnnotation] = string(createdByRefJson)
+	return desiredAnnotations, nil
+}
+
 func (w WorkflowJobControl) CreateJob(namespace string, template *extensions.JobSpec, object runtime.Object, key string) error {
-	// TODO: @sdminonne labels and annotations should be properly finalized
-	desiredLabels := make(map[string]string)
-	desiredAnnotations := make(map[string]string)
+	desiredLabels := getJobsLabelSet(object)
+	desiredLabels[key] = "" //  inserting step name as a key with empty value
+	desiredAnnotations, err := getJobsAnnotationSet(object)
+	if err != nil {
+		return err
+	}
 	meta, err := api.ObjectMetaFor(object)
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
-	prefix := meta.Name
+	prefix := getJobsPrefix(meta.Name)
 	job := &extensions.Job{
 		ObjectMeta: api.ObjectMeta{
 			Labels:       desiredLabels,
@@ -454,7 +494,7 @@ func (w WorkflowJobControl) CreateJob(namespace string, template *extensions.Job
 		},
 	}
 
-	if err := api.Scheme.Convert(&template, &job.Spec); err != nil {
+	if err := api.Scheme.Convert(template, &job.Spec); err != nil {
 		return fmt.Errorf("unable to convert job template: %v", err)
 	}
 
@@ -467,6 +507,6 @@ func (w WorkflowJobControl) CreateJob(namespace string, template *extensions.Job
 	return nil
 }
 
-func (w WorkflowJobControl) DeleteJob(namespace string, template *extensions.JobSpec, object runtime.Object) error {
+func (w WorkflowJobControl) DeleteJob(namespace, name string, object runtime.Object) error {
 	return nil
 }
