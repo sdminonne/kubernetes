@@ -767,6 +767,9 @@ type WorkflowSpec struct {
 	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
 
 	Steps map[string]WorkflowStep `json:"steps,omitempty"`
+
+	// Selector for created jobs (if any)
+	Selector *LabelSelector `json:"selector,omitempty"`
 }
 
 // WorkflowStep contains necessary information to identifiy the node of the workflow graph
@@ -809,6 +812,17 @@ type WorkflowCondition struct {
 type WorkflowStatus struct {
 	// Conditions represent the latest available observations of an object's current state.
 	Conditions []WorkflowCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+
+	// StartTime represents time when the job was acknowledged by the Workflow controller
+	// It is not guaranteed to be set in happens-before order across separate operations.
+	// It is represented in RFC3339 form and is in UTC.
+	// StartTime doesn't consider startime of `ExternalReference`
+	StartTime *unversioned.Time `json:"startTime,omitempty"`
+
+	// CompletionTime represents time when the workflow was completed. It is not guaranteed to
+	// be set in happens-before order across separate operations.
+	// It is represented in RFC3339 form and is in UTC.
+	CompletionTime *unversioned.Time `json:"completionTime,omitempty"`
 
 	// Statuses represent status of different steps
 	Statuses map[string]WorkflowStepStatus `json:statuses`

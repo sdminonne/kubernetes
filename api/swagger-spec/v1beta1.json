@@ -6156,6 +6156,9 @@
      },
      "steps": {
       "type": "any"
+     },
+     "selector": {
+      "$ref": "v1beta1.LabelSelector"
      }
     }
    },
@@ -6171,6 +6174,12 @@
        "$ref": "v1beta1.WorkflowCondition"
       },
       "description": "Conditions represent the latest available observations of an object's current state."
+     },
+     "startTime": {
+      "type": "string"
+     },
+     "completionTime": {
+      "type": "string"
      },
      "Statuses": {
       "type": "any",

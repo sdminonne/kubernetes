@@ -3575,6 +3575,15 @@ func autoConvert_extensions_WorkflowSpec_To_v1beta1_WorkflowSpec(in *extensions.
 	} else {
 		out.Steps = nil
 	}
+	// unable to generate simple pointer conversion for extensions.LabelSelector -> v1beta1.LabelSelector
+	if in.Selector != nil {
+		out.Selector = new(LabelSelector)
+		if err := Convert_extensions_LabelSelector_To_v1beta1_LabelSelector(in.Selector, out.Selector, s); err != nil {
+			return err
+		}
+	} else {
+		out.Selector = nil
+	}
 	return nil
 }
 
@@ -3595,6 +3604,24 @@ func autoConvert_extensions_WorkflowStatus_To_v1beta1_WorkflowStatus(in *extensi
 		}
 	} else {
 		out.Conditions = nil
+	}
+	// unable to generate simple pointer conversion for unversioned.Time -> unversioned.Time
+	if in.StartTime != nil {
+		out.StartTime = new(unversioned.Time)
+		if err := api.Convert_unversioned_Time_To_unversioned_Time(in.StartTime, out.StartTime, s); err != nil {
+			return err
+		}
+	} else {
+		out.StartTime = nil
+	}
+	// unable to generate simple pointer conversion for unversioned.Time -> unversioned.Time
+	if in.CompletionTime != nil {
+		out.CompletionTime = new(unversioned.Time)
+		if err := api.Convert_unversioned_Time_To_unversioned_Time(in.CompletionTime, out.CompletionTime, s); err != nil {
+			return err
+		}
+	} else {
+		out.CompletionTime = nil
 	}
 	if in.Statuses != nil {
 		out.Statuses = make(map[string]WorkflowStepStatus)
@@ -4830,6 +4857,15 @@ func autoConvert_v1beta1_WorkflowSpec_To_extensions_WorkflowSpec(in *WorkflowSpe
 	} else {
 		out.Steps = nil
 	}
+	// unable to generate simple pointer conversion for v1beta1.LabelSelector -> extensions.LabelSelector
+	if in.Selector != nil {
+		out.Selector = new(extensions.LabelSelector)
+		if err := Convert_v1beta1_LabelSelector_To_extensions_LabelSelector(in.Selector, out.Selector, s); err != nil {
+			return err
+		}
+	} else {
+		out.Selector = nil
+	}
 	return nil
 }
 
@@ -4850,6 +4886,24 @@ func autoConvert_v1beta1_WorkflowStatus_To_extensions_WorkflowStatus(in *Workflo
 		}
 	} else {
 		out.Conditions = nil
+	}
+	// unable to generate simple pointer conversion for unversioned.Time -> unversioned.Time
+	if in.StartTime != nil {
+		out.StartTime = new(unversioned.Time)
+		if err := api.Convert_unversioned_Time_To_unversioned_Time(in.StartTime, out.StartTime, s); err != nil {
+			return err
+		}
+	} else {
+		out.StartTime = nil
+	}
+	// unable to generate simple pointer conversion for unversioned.Time -> unversioned.Time
+	if in.CompletionTime != nil {
+		out.CompletionTime = new(unversioned.Time)
+		if err := api.Convert_unversioned_Time_To_unversioned_Time(in.CompletionTime, out.CompletionTime, s); err != nil {
+			return err
+		}
+	} else {
+		out.CompletionTime = nil
 	}
 	if in.Statuses != nil {
 		out.Statuses = make(map[string]extensions.WorkflowStepStatus)

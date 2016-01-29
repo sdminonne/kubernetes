@@ -790,6 +790,8 @@ type WorkflowSpec struct {
 	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
 
 	Steps map[string]WorkflowStep `json:"steps,omitempty"`
+
+	Selector *LabelSelector `json:"selector,omitempty"`
 }
 
 // WorkflowStep contains necessary information to identifiy the node of the workflow graph
@@ -832,6 +834,10 @@ type WorkflowCondition struct {
 type WorkflowStatus struct {
 	// Conditions represent the latest available observations of an object's current state.
 	Conditions []WorkflowCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+
+	StartTime *unversioned.Time `json:"startTime,omitempty"`
+
+	CompletionTime *unversioned.Time `json:"completionTime,omitempty"`
 
 	// Statuses represent status of different steps
 	Statuses map[string]WorkflowStepStatus `json:statuses`

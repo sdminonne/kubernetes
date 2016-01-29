@@ -1752,6 +1752,14 @@ func deepCopy_extensions_WorkflowSpec(in WorkflowSpec, out *WorkflowSpec, c *con
 	} else {
 		out.Steps = nil
 	}
+	if in.Selector != nil {
+		out.Selector = new(LabelSelector)
+		if err := deepCopy_extensions_LabelSelector(*in.Selector, out.Selector, c); err != nil {
+			return err
+		}
+	} else {
+		out.Selector = nil
+	}
 	return nil
 }
 
@@ -1765,6 +1773,22 @@ func deepCopy_extensions_WorkflowStatus(in WorkflowStatus, out *WorkflowStatus, 
 		}
 	} else {
 		out.Conditions = nil
+	}
+	if in.StartTime != nil {
+		out.StartTime = new(unversioned.Time)
+		if err := deepCopy_unversioned_Time(*in.StartTime, out.StartTime, c); err != nil {
+			return err
+		}
+	} else {
+		out.StartTime = nil
+	}
+	if in.CompletionTime != nil {
+		out.CompletionTime = new(unversioned.Time)
+		if err := deepCopy_unversioned_Time(*in.CompletionTime, out.CompletionTime, c); err != nil {
+			return err
+		}
+	} else {
+		out.CompletionTime = nil
 	}
 	if in.Statuses != nil {
 		out.Statuses = make(map[string]WorkflowStepStatus)
