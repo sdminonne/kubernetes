@@ -139,6 +139,7 @@ type WorkflowConditionType string
 const (
   // WorkflowComplete means the workflow has completed its execution.
   WorkflowComplete WorkflowConditionType = "Complete"
+  WorfflowFailed WorkflowConditionType = "Failed"
 )
 
 type WorkflowCondition struct {
@@ -166,7 +167,7 @@ type WorkflowStatus struct {
   // Conditions represent the latest available observations of an object's current state.
   Conditions []WorkflowCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
-  // StartTime represents time when the job was acknowledged by the Workflow controller
+  // StartTime represents time when the workflow was acknowledged by the Workflow controller
   // It is not guaranteed to be set in happens-before order across separate operations.
   // It is represented in RFC3339 form and is in UTC.
   // StartTime doesn't consider startime of `ExternalReference`
@@ -222,14 +223,16 @@ If deadline didn't expires the workflow controller iterates over all workflow st
    - If step is completed nothing is done.
    - If step is not completed two sub-cases should be analyzed:
      * Step containing workflow: check wether workflow terminated and eventually update
-     the `status.statuses[name].complete` entry if applicable
+       the `status.statuses[name].complete` entry if applicable
      * Step containing job: check whether job needs to be started or is already started.
        - A step/job is started if it has no dependecies or all its dependencies are already
-       terminated. Workflow controller adds some labels to the Job.
-       This will permit to obtain the workflow each job belongs to (via `spec.Selector`).
-       The step name is equally inserted as a label in each job.
+         terminated. Workflow controller adds some labels to the Job.
+         This will permit to obtain the workflow each job belongs to (via `spec.Selector`).
+         The step name is equally inserted as a label in each job.
        - If the job is already running, a completion check is performed. If the job terminated
          (checked via conditions `job.status`) the field `status.statusues[name].complete` is updated.
+         If the job fails Workflow fails as well: `failed` condition is added to `status.conditiont`
+         and the `status.completionTime` is updated. At this point, workflow is finished
    - When all steps are complete: `complete` condition is added to `status.condition` and the
      `status.completionTime` is updated. At this point, workflow is finished.
 
