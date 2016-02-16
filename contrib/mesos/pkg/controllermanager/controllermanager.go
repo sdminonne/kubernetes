@@ -186,7 +186,7 @@ func (s *CMServer) Run(_ []string) error {
 	}
 	resourceQuotaControllerOptions := &resourcequotacontroller.ResourceQuotaControllerOptions{
 		KubeClient:            resourceQuotaControllerClient,
-		ResyncPeriod:          controller.StaticResyncPeriodFunc(s.ResourceQuotaSyncPeriod),
+		ResyncPeriod:          controller.StaticResyncPeriodFunc(s.ResourceQuotaSyncPeriod.Duration),
 		Registry:              resourceQuotaRegistry,
 		GroupKindsToReplenish: groupKindsToReplenish,
 		ControllerFactory:     resourcequotacontroller.NewReplenishmentControllerFactory(resourceQuotaControllerClient),
