@@ -2167,6 +2167,8 @@ const (
 	ResourceSecrets ResourceName = "secrets"
 	// ResourcePersistentVolumeClaims, number
 	ResourcePersistentVolumeClaims ResourceName = "persistentvolumeclaims"
+	// ResourceNodePorts, number
+	ResourceNodePorts ResourceName = "nodeports"
 	// CPU request, in cores. (500m = .5 cores)
 	ResourceCPURequest ResourceName = "cpu.request"
 	// CPU limit, in cores. (500m = .5 cores)
