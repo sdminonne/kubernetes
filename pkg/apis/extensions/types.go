@@ -940,6 +940,8 @@ type PodSecurityPolicyList struct {
 	Items []PodSecurityPolicy `json:"items"`
 }
 
+// +genclient=true
+
 // Workflow implements
 type Workflow struct {
 	unversioned.TypeMeta `json:",inline"`
