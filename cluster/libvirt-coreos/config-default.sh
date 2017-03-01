@@ -48,6 +48,7 @@ NODE_CONTAINER_SUBNETS[$NUM_NODES]=$MASTER_CONTAINER_SUBNET
 
 SERVICE_CLUSTER_IP_RANGE="${SERVICE_CLUSTER_IP_RANGE:-10.11.0.0/16}"  # formerly PORTAL_NET
 
+export KUBERNETES_SKIP_VERIFY_BINARIES="Y"
 
 # Optional: Enable node logging.
 ENABLE_NODE_LOGGING=false
@@ -64,9 +65,7 @@ ENABLE_CLUSTER_REGISTRY="${KUBE_ENABLE_CLUSTER_REGISTRY:-true}"
 # Optional: Enable DNS horizontal autoscaler
 ENABLE_DNS_HORIZONTAL_AUTOSCALER="${KUBE_ENABLE_DNS_HORIZONTAL_AUTOSCALER:-false}"
 
-#Generate dns files
-sed -f "${KUBE_ROOT}/cluster/addons/dns/transforms2sed.sed" < "${KUBE_ROOT}/cluster/addons/dns/kube-dns.yaml.base" | sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forShellEval.sed"  > "${KUBE_ROOT}/cluster/libvirt-coreos/kube-dns.yaml"
-
-
-#Generate registry files
-sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forEmptyDirRegistry.sed" < "${KUBE_ROOT}/cluster/addons/registry/registry-rc.yaml"  > "${KUBE_ROOT}/cluster/libvirt-coreos/registry-rc.yaml"
+#COLOR
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color

@@ -1,5 +1,117 @@
 #cloud-config
 
+hostname: ${name}
+
+ssh_authorized_keys:
+${ssh_keys}
+
+write_files:
+  - path: /etc/systemd/journald.conf
+    permissions: 0644
+    content: |
+      [Journal]
+      SystemMaxUse=50M
+      RuntimeMaxUse=50M
+
+coreos:
+  etcd2:
+    advertise-client-urls: http://${public_ip}:${ETCD_PORT}
+    initial-advertise-peer-urls: http://${public_ip}:${ETCD_PEER_PORT}
+    listen-client-urls: http://0.0.0.0:${ETCD_PORT}
+    listen-peer-urls: http://${public_ip}:${ETCD_PEER_PORT}
+    initial-cluster-state: new
+    initial-cluster: ${etcd2_initial_cluster}
+  units:
+    - name: static.network
+      command: start
+      content: |
+        [Match]
+        # Name=eth0
+        MACAddress=52:54:00:00:00:${NUM_NODES}
+
+        [Network]
+        Address=${public_ip}/24
+        DNS=192.168.10.254
+        Gateway=192.168.10.254
+    - name: cbr0.netdev
+      command: start
+      content: |
+        [NetDev]
+        Kind=bridge
+        Name=cbr0
+    - name: cbr0.network
+      command: start
+      content: |
+        [Match]
+        Name=cbr0
+
+        [Network]
+        Address=$MASTER_CONTAINER_SUBNET
+
+        [Route]
+        Destination=${CONTAINER_SUBNET}
+    - name: cbr0-interface.network
+      command: start
+      content: |
+        [Match]
+        # Name=eth1
+        MACAddress=52:54:00:00:01:${NUM_NODES}
+
+        [Network]
+        Bridge=cbr0
+    - name: nat.service
+      command: start
+      content: |
+        [Unit]
+        Description=NAT non container traffic
+
+        [Service]
+        ExecStart=/usr/sbin/iptables -w -t nat -A POSTROUTING -o eth0 -j MASQUERADE ! -d ${CONTAINER_SUBNET}
+        RemainAfterExit=yes
+        Type=oneshot
+    - name: etcd2.service
+      command: start
+      drop-ins:
+        - name: 10-override-name.conf
+          content: |
+            [Service]
+            Environment=ETCD_NAME=%H
+    - name: docker.service
+      command: start
+      drop-ins:
+        - name: 50-opts.conf
+          content: |
+            [Service]
+            Environment='DOCKER_OPTS=--bridge=cbr0 --iptables=false'
+    - name: docker-tcp.socket
+      command: start
+      enable: yes
+      content: |
+        [Unit]
+        Description=Docker Socket for the API
+
+        [Socket]
+        ListenStream=2375
+        BindIPv6Only=both
+        Service=docker.service
+
+        [Install]
+        WantedBy=sockets.target
+    - name: opt-kubernetes.mount
+      command: start
+      content: |
+        [Unit]
+        ConditionVirtualization=|vm
+
+        [Mount]
+        What=kubernetes
+        Where=/opt/kubernetes
+        Options=ro,trans=virtio,version=9p2000.L
+        Type=9p
+  update:
+    group: ${COREOS_CHANNEL:-alpha}
+    reboot-strategy: off
+
 coreos:
   units:
     - name: kube-apiserver.service
@@ -14,18 +126,28 @@ coreos:
 
         [Service]
         ExecStart=/opt/kubernetes/bin/kube-apiserver \
-        --tls-cert-file=./opt/kubernetes/certs/apiserver.pem \
-        --tls-private-key-file=/opt/kubernetes/certs/apiserver-key.pem \
-        --client-ca-file=/opt/kubernetes/certs/ca.pem \
-        --service-account-key-file=/opt/kubernetes/certs/apiserver-key.pem \
+        --client-ca-file=/opt/kubernetes/certs/${CLIENT_CA_CRT} \
         --service-account-lookup=${SERVICE_ACCOUNT_LOOKUP} \
+        --service-account-key-file=/opt/kubernetes/certs/${SERVICE_ACCOUNT_KEY_FILE} \
         --admission-control=${ADMISSION_CONTROL} \
-        --insecure-bind-address=0.0.0.0 \
+        --tls-cert-file=/opt/kubernetes/certs/${SERVING_KUBE_APISERVER_CRT} \
+        --tls-private-key-file=/opt/kubernetes/certs/${SERVING_KUBE_APISERVER_KEY} \
+        --tls-ca-file=/opt/kubernetes/certs/${SERVER_CA_CRT} \
+        --insecure-bind-address=${MASTER_IP} \
         --insecure-port=8080 \
+        --bind-address=0.0.0.0 \
+        --secure-port=6443 \
         --etcd-servers=http://127.0.0.1:2379 \
-        --kubelet-port=10250 \
-        --v=4 \
-        --service-cluster-ip-range=${SERVICE_CLUSTER_IP_RANGE}
+        --storage-backend=etcd2 \
+        --service-cluster-ip-range=${SERVICE_CLUSTER_IP_RANGE} \
+        --feature-gates=AllAlpha=true \
+        --allow-privileged=true \
+        --requestheader-username-headers=X-Remote-User \
+        --requestheader-group-headers=X-Remote-Group \
+        --requestheader-extra-headers-prefix=X-Remote-Extra- \
+        --requestheader-client-ca-file=/opt/kubernetes/certs/${REQUEST_HEADER_CRT} \
+        --requestheader-allowed-names=system:auth-proxy \
+        --v=4
         Restart=always
         RestartSec=2
 
@@ -43,10 +165,15 @@ coreos:
 
         [Service]
         ExecStart=/opt/kubernetes/bin/kube-controller-manager \
-        --master=127.0.0.1:8080 \
-        --service-account-private-key-file=/opt/kubernetes/certs/apiserver-key.pem \
-        --root-ca-file=/opt/kubernetes/certs/ca.pem \
-        --v=4
+        --service-account-private-key-file=/opt/kubernetes/certs/${SERVICE_ACCOUNT_KEY_FILE} \
+        --root-ca-file=/opt/kubernetes/certs/${SERVER_CA_CRT} \
+        --enable-hostpath-provisioner=false \
+        --pvclaimbinder-sync-period=15s \
+        --feature-gates=AllAlpha=true \
+        --kubeconfig /opt/kubernetes/config/controller.kubeconfig \
+        --use-service-account-credentials \
+        --master=https://${MASTER_IP}:6443 \
+        --v=3
         Restart=always
         RestartSec=2
 
@@ -64,14 +191,15 @@ coreos:
 
         [Service]
         ExecStart=/opt/kubernetes/bin/kube-scheduler \
-        --master=127.0.0.1:8080
+        --kubeconfig /opt/kubernetes/config/scheduler.kubeconfig \
+        --master=https://${MASTER_IP}:6443 \
+        --v=3
         Restart=always
         RestartSec=2
 
         [Install]
         WantedBy=multi-user.target
     - name: kube-addons.service
-      command: start
       content: |
         [Unit]
         After=opt-kubernetes.mount kube-apiserver.service

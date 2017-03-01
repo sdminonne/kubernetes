@@ -1358,6 +1358,10 @@ if missing:
 # If KUBERNETES_SKIP_CONFIRM is set to y, we'll automatically download binaries
 # without prompting.
 function verify-kube-binaries() {
+  if  [[ ! "${KUBERNETES_SKIP_VERIFY_BINARIES:-n}" =~ ^[yY]$ ]]; then
+    echo -e "\033[0;31mkube binaries verification skipped\033[0m"
+    return
+  fi
   local missing_binaries=false
   if ! "${KUBE_ROOT}/cluster/kubectl.sh" version --client >&/dev/null; then
     echo "!!! kubectl appears to be broken or missing"

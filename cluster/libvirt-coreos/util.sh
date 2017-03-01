@@ -24,6 +24,10 @@ KUBE_ROOT=$(dirname "${BASH_SOURCE}")/../..
 readonly ROOT=$(dirname "${BASH_SOURCE}")
 source "$ROOT/${KUBE_CONFIG_FILE:-"config-default.sh"}"
 source "$KUBE_ROOT/cluster/common.sh"
+source "${KUBE_ROOT}/hack/lib/init.sh"
+
+kube::util::test_openssl_installed
+kube::util::test_cfssl_installed
 
 export LIBVIRT_DEFAULT_URI=qemu:///system
 export SERVICE_ACCOUNT_LOOKUP=${SERVICE_ACCOUNT_LOOKUP:-true}
@@ -90,39 +94,46 @@ function detect-nodes {
   KUBE_NODE_IP_ADDRESSES=("${NODE_IPS[@]}")
 }
 
+export tempdir=$(mktemp -d)
+
+readonly SERVER_CA_CRT="server-ca.crt"
+readonly CLIENT_CA_CRT="client-ca.crt"
+readonly SERVING_KUBE_APISERVER_CRT="serving-kube-apiserver.crt"
+readonly SERVING_KUBE_APISERVER_KEY="serving-kube-apiserver.key"
+readonly REQUEST_HEADER_CRT="request-header-ca.crt"
+
 function generate_certs {
-    node_names=("${@}")
-    #Root-CA
-    tempdir=$(mktemp -d)
-    CA_KEY=${CA_KEY:-"$tempdir/ca-key.pem"}
-    CA_CERT=${CA_CERT:-"$tempdir/ca.pem"}
-    openssl genrsa -out "${CA_KEY}" 2048 2>/dev/null
-    openssl req -x509 -new -nodes -key "${CA_KEY}" -days 10000 -out "${CA_CERT}" -subj "/CN=kube-ca"  2>/dev/null
 
-    #API server key pair
-    KUBE_KEY=${KUBE_KEY:-"$tempdir/apiserver-key.pem"}
-    API_SERVER_CERT_REQ=${API_SERVER_CERT_REQ:-"$tempdir/apiserver.csr"}
-    openssl genrsa -out "${KUBE_KEY}" 2048 2>/dev/null
-    KUBERNETES_SVC=${SERVICE_CLUSTER_IP_RANGE%.*}.1 openssl req -new -key "${KUBE_KEY}" -out "${API_SERVER_CERT_REQ}" -subj "/CN=kube-apiserver" -config cluster/libvirt-coreos/openssl.cnf 2>/dev/null
-    KUBE_CERT=${KUBE_CERT:-"$tempdir/apiserver.pem"}
-    KUBERNETES_SVC=${SERVICE_CLUSTER_IP_RANGE%.*}.1 openssl x509 -req -in "${API_SERVER_CERT_REQ}" -CA "${CA_CERT}" -CAkey "${CA_KEY}" -CAcreateserial -out "${KUBE_CERT}" -days 365 -extensions v3_req -extfile  cluster/libvirt-coreos/openssl.cnf 2>/dev/null
+   echo "GENERATE certs -> ${tempdir}"
+   mkdir -p  "$POOL_PATH/kubernetes/certs"
+   kube::util::create_signing_certkey "" "$tempdir" server '"server auth"'
+   cp ${tempdir}/${SERVER_CA_CRT} "$POOL_PATH/kubernetes/certs"
 
-    #Copy apiserver and controller tsl assets
-    mkdir -p  "$POOL_PATH/kubernetes/certs"
-    cp "${KUBE_CERT}" "$POOL_PATH/kubernetes/certs"
-    cp "${KUBE_KEY}"  "$POOL_PATH/kubernetes/certs"
-    cp "${CA_CERT}" "$POOL_PATH/kubernetes/certs"
+   kube::util::create_signing_certkey "" "${tempdir}" client '"client auth"'
+   cp ${tempdir}/${CLIENT_CA_CRT} "$POOL_PATH/kubernetes/certs"
 
-    #Generate nodes certificate
-    for (( i = 0 ; i < $NUM_NODES ; i++ )); do
-        openssl genrsa -out $tempdir/${node_names[$i]}-node-key.pem 2048 2>/dev/null
-        cp "$tempdir/${node_names[$i]}-node-key.pem" "$POOL_PATH/kubernetes/certs"
-        WORKER_IP=${NODE_IPS[$i]} openssl req -new -key $tempdir/${node_names[$i]}-node-key.pem -out $tempdir/${node_names[$i]}-node.csr -subj "/CN=${node_names[$i]}" -config  cluster/libvirt-coreos/node-openssl.cnf 2>/dev/null
-        WORKER_IP=${NODE_IPS[$i]} openssl x509 -req -in $tempdir/${node_names[$i]}-node.csr -CA "${CA_CERT}" -CAkey "${CA_KEY}" -CAcreateserial -out $tempdir/${node_names[$i]}-node.pem -days 365 -extensions v3_req -extfile  cluster/libvirt-coreos/node-openssl.cnf 2>/dev/null
-        cp "$tempdir/${node_names[$i]}-node.pem" "$POOL_PATH/kubernetes/certs"
-    done
-    echo "TLS assets generated..."
+   SERVICE_ACCOUNT_KEY_FILE=${SERVICE_ACCOUNT_KEY_FILE:-kube-serviceaccount.key}
+   openssl genrsa -out "$tempdir/${SERVICE_ACCOUNT_KEY_FILE}" 2048 2>/dev/null
+   cp "${tempdir}/${SERVICE_ACCOUNT_KEY_FILE}" "$POOL_PATH/kubernetes/certs"
+
+   kube::util::create_serving_certkey "" "${tempdir}" "server-ca" kube-apiserver kubernetes kubernetes.default kubernetes.default.svc  "localhost" ${MASTER_IP} ${MASTER_NAME} ${SERVICE_CLUSTER_IP_RANGE%.*}.1
+   cp "${tempdir}/${SERVING_KUBE_APISERVER_CRT}" "$POOL_PATH/kubernetes/certs"
+   chmod 666 "${tempdir}/${SERVING_KUBE_APISERVER_KEY}"
+   cp "${tempdir}/${SERVING_KUBE_APISERVER_KEY}" "$POOL_PATH/kubernetes/certs"
+
+
+   kube::util::create_signing_certkey "" "${tempdir}" request-header '"client auth"'
+   cp "${tempdir}/${REQUEST_HEADER_CRT}" "$POOL_PATH/kubernetes/certs"
+
+   # Create client certs signed with client-ca, given id, given CN and a number of groups
+   kube::util::create_client_certkey "" "${tempdir}" 'client-ca' kube-proxy system:kube-proxy system:nodes
+   kube::util::create_client_certkey "" "${tempdir}" 'client-ca' controller system:kube-controller-manager
+   kube::util::create_client_certkey "" "${tempdir}" 'client-ca' scheduler  system:kube-scheduler
+   kube::util::create_client_certkey "" "${tempdir}" 'client-ca' admin system:admin system:masters
+
 }
+
+
 
 #Setup registry proxy
 function setup_registry_proxy {
@@ -168,6 +179,8 @@ function destroy-pool {
 
   rm -rf "$POOL_PATH"/kubernetes/*
   rm -rf "$POOL_PATH"/kubernetes_config*/*
+  rm -rf "$POOL_PATH"/kubernetes_kubernetes*/*
+
   local vol
   virsh vol-list $POOL | awk 'NR>2 && !/^$/ && $1 ~ /^kubernetes/ {print $1}' | \
       while read vol; do
@@ -187,6 +200,7 @@ function destroy-pool {
 # - the CoreOS base image
 # - the kubernetes binaries
 function initialize-pool {
+  echo "Creating POOL_PATH at $POOL_PATH"
   mkdir -p "$POOL_PATH"
   if ! virsh pool-info $POOL >/dev/null 2>&1; then
       virsh pool-create-as $POOL dir --target "$POOL_PATH"
@@ -214,11 +228,6 @@ function initialize-pool {
       fi
   fi
 
-  mkdir -p "$POOL_PATH/kubernetes/addons"
-  if [[ "$ENABLE_CLUSTER_DNS" == "true" ]]; then
-      render-template "$ROOT/namespace.yaml" > "$POOL_PATH/kubernetes/addons/namespace.yaml"
-      render-template "$ROOT/kube-dns.yaml" > "$POOL_PATH/kubernetes/addons/kube-dns.yaml"
-  fi
 
   virsh pool-refresh $POOL
 }
@@ -257,7 +266,64 @@ function wait-cluster-readiness {
   return 1
 }
 
-# Instantiate a kubernetes cluster
+
+
+#Master contains apiserver and etcd.
+#It does not contain the scheduler and the controller manager
+#Needs API_HOST_IP
+#Needs ETCD_PORT
+#Needs MASTER_NAME
+function start_api_server {
+  #TODO: @sdminonne port to etcd3
+  #Using .../hack/lib/etcd.sh
+
+  readonly ssh_keys="$(cat ~/.ssh/*.pub | sed 's/^/  - /')"
+
+  ETCD_PORT=${ETCD_PORT:-2379}
+  ETCD_PEER_PORT=${ETC_PEER_PORT:-2380}
+  api_host_ip=${MASTER_IP:-192.168.10.1}
+  apiserver_name=${MASTER_NAME:-apiserver}
+  readonly kubernetes_dir="$POOL_PATH/kubernetes"
+  mkdir -p ${kubernetes_dir}/bin
+  mkdir -p ${kubernetes_dir}/certs
+  mkdir -p ${kubernetes_dir}/config
+  cp ${KUBE_ROOT}/_output/local/go/bin/kube-apiserver ${kubernetes_dir}/bin
+
+  #TODO: @sdminonne port to etcd3
+  #Using .../hack/lib/etcd.sh
+  etcd2_initial_cluster="${apiserver_name}=http://${MASTER_IP}:${ETCD_PEER_PORT}"
+  type=master
+  name=${apiserver_name}
+  public_ip=${api_host_ip}
+  memory=2048
+  image=$name.img
+  config=kubernetes_config_$type
+  virsh vol-create-as $POOL $image 10G --format qcow2 --backing-vol coreos_base.img --backing-vol-format qcow2
+
+  mkdir -p "$POOL_PATH/$config/openstack/latest"
+  render-template "$ROOT/user_data_master.yml" > "$POOL_PATH/$config/openstack/latest/user_data"
+  virsh pool-refresh $POOL
+
+  domain_xml=$(mktemp)
+  render-template $ROOT/coreos.xml > $domain_xml
+  virsh create $domain_xml
+  rm $domain_xml
+
+  kube::util::wait_for_url "http://${MASTER_IP}:${ETCD_PORT}/v2/machines" "etcd: " 0.25 4000
+  curl -fs -X PUT "http://${MASTER_IP}:${ETCD_PORT}/v2/keys/_test"
+
+
+}
+
+function start_controller_and_scheduler {
+  ssh-to-node "$MASTER_NAME" "sudo systemctl start kube-controller-manager kube-scheduler"
+}
+
+function message_ok {
+  txt=$1
+  printf "${GREEN}$txt${NC}\n"
+}
+
 function kube-up {
   detect-master
   detect-nodes
@@ -266,100 +332,153 @@ function kube-up {
   setup_registry_proxy
   initialize-network
 
-  readonly ssh_keys="$(cat ~/.ssh/*.pub | sed 's/^/  - /')"
-  readonly kubernetes_dir="$POOL_PATH/kubernetes"
+  start_api_server
 
-  local i
-  for (( i = 0 ; i <= $NUM_NODES ; i++ )); do
-    if [[ $i -eq $NUM_NODES ]]; then
-        etcd2_initial_cluster[$i]="${MASTER_NAME}=http://${MASTER_IP}:2380"
-    else
-        etcd2_initial_cluster[$i]="${NODE_NAMES[$i]}=http://${NODE_IPS[$i]}:2380"
-    fi
-  done
-  etcd2_initial_cluster=$(join , "${etcd2_initial_cluster[@]}")
-  readonly machines=$(join , "${KUBE_NODE_IP_ADDRESSES[@]}")
+  readonly wait_for_url_api_srever=30
+  kube::util::wait_for_url "http://${MASTER_IP}:8080/version" "apiserver: " 1 ${wait_for_url_api_srever}
+  message_ok "k8s API server up and running"
 
-  for (( i = 0 ; i <= $NUM_NODES ; i++ )); do
-    if [[ $i -eq $NUM_NODES ]]; then
-        type=master
-        name=$MASTER_NAME
-        public_ip=$MASTER_IP
-    else
-      type=node-$(printf "%02d" $i)
-      name=${NODE_NAMES[$i]}
-      public_ip=${NODE_IPS[$i]}
-    fi
+  configure-kubectl
+  message_ok "kubectl configured"
+
+
+  kube::util::write_client_kubeconfig "" "${tempdir}" "${SERVER_CA_CRT}" "${MASTER_NAME}" "6443" controller
+  cp "${tempdir}/controller.kubeconfig" "$POOL_PATH/kubernetes/config"
+  kube::util::write_client_kubeconfig "" "${tempdir}" "${SERVER_CA_CRT}" "${MASTER_NAME}" "6443" scheduler
+  cp "${tempdir}/scheduler.kubeconfig" "$POOL_PATH/kubernetes/config"
+  start_controller_and_scheduler
+
+  message_ok "controller and scheduler started"
+  node_names=("${NODE_NAMES[@]}")
+
+  for (( i = 0 ; i < $NUM_NODES ; i++ )); do
+    type=node-$(printf "%02d" $i)
+    name="${NODE_NAMES[i]}"
+    public_ip=${NODE_IPS[$i]}
+    memory=1024
     image=$name.img
     config=kubernetes_config_$type
 
     virsh vol-create-as $POOL $image 10G --format qcow2 --backing-vol coreos_base.img --backing-vol-format qcow2
 
     mkdir -p "$POOL_PATH/$config/openstack/latest"
-    render-template "$ROOT/user_data.yml" > "$POOL_PATH/$config/openstack/latest/user_data"
+    render-template "$ROOT/user_data_node.yml" > "$POOL_PATH/$config/openstack/latest/user_data"
+
+    kube::util::create_client_certkey "" "${tempdir}" 'client-ca' "${NODE_NAMES[$i]}-kubelet" system:node:${NODE_NAMES[$i]} system:nodes
+    kube::util::write_client_kubeconfig "" "${tempdir}" "${SERVER_CA_CRT}" "${MASTER_IP}" "6443" "${NODE_NAMES[$i]}-kubelet"
+    mv "$tempdir/${NODE_NAMES[$i]}-kubelet.kubeconfig" "$POOL_PATH/kubernetes/config"
+
+    kube::util::create_client_certkey "" "${tempdir}" 'client-ca' "${NODE_NAMES[$i]}-kube-proxy" system:kube-proxy system:nodes
+    kube::util::write_client_kubeconfig "" "${tempdir}" "${SERVER_CA_CRT}" "${MASTER_IP}" "6443" "${NODE_NAMES[$i]}-kube-proxy"
+    mv "$tempdir/${NODE_NAMES[$i]}-kube-proxy.kubeconfig" "$POOL_PATH/kubernetes/config"
+
     virsh pool-refresh $POOL
 
     domain_xml=$(mktemp)
     render-template $ROOT/coreos.xml > $domain_xml
     virsh create $domain_xml
-    rm $domain_xml
   done
 
-  export KUBE_SERVER="http://192.168.10.1:8080"
-  export CONTEXT="libvirt-coreos"
-  create-kubeconfig
+  wait-kube-system
+  start_kubedns
+  start-registry
   create-kubelet-kubeconfig "http://${MASTER_IP}:8080" "${POOL_PATH}/kubernetes/kubeconfig/kubelet.kubeconfig"
 
-  wait-cluster-readiness
+}
 
-  echo "Kubernetes cluster is running. The master is running at:"
-  echo
-  echo "  http://${KUBE_MASTER_IP}:8080"
-  echo
-  echo "You can control the Kubernetes cluster with: 'kubectl'"
-  echo "You can connect on the master with: 'ssh core@${KUBE_MASTER_IP}'"
 
-  wait-registry-readiness
+function start_kubedns {
+  if [[ "${ENABLE_CLUSTER_DNS}" != "true" ]]; then
+    return 0
+  fi
+  sed -f "${KUBE_ROOT}/cluster/addons/dns/transforms2sed.sed" < "${KUBE_ROOT}/cluster/addons/dns/kubedns-controller.yaml.base" | sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forShellEval.sed"  > "${KUBE_ROOT}/cluster/libvirt-coreos/kubedns-controller.yaml.tmp"
+  sed -f "${KUBE_ROOT}/cluster/addons/dns/transforms2sed.sed" < "${KUBE_ROOT}/cluster/addons/dns/kubedns-svc.yaml.base" | sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forShellEval.sed"  > "${KUBE_ROOT}/cluster/libvirt-coreos/kubedns-svc.yaml.tmp"
 
+  render-template "$ROOT/kubedns-svc.yaml.tmp" > "$ROOT/kubedns-svc.yaml"
+  render-template "$ROOT/kubedns-controller.yaml.tmp"  > "$ROOT/kubedns-controller.yaml"
+
+  echo "starting kubedns..."
+  #kubectl create clusterrolebinding system:kube-dns --clusterrole=cluster-admin --serviceaccount=kube-system:default
+  kubectl  --namespace=kube-system create -f "${KUBE_ROOT}/cluster/addons/dns/kubedns-sa.yaml"
+  kubectl  --namespace=kube-system create -f "${KUBE_ROOT}/cluster/addons/dns/kubedns-cm.yaml"
+  kubectl  --namespace=kube-system create -f "$ROOT/kubedns-controller.yaml"
+  kubectl  --namespace=kube-system create -f "$ROOT/kubedns-svc.yaml"
+
+  rm -rf "$ROOT/kubedns-controller.yaml" "$ROOT/kubedns-controller.yaml.tmp" "$ROOT/kubedns-svc.yaml" "$ROOT/kubedns-svc.yaml.tmp"
+
+}
+
+
+function configure-kubectl {
+  kubectl config set-cluster default-cluster --server=https://${MASTER_IP}:6443 --certificate-authority="$tempdir/${SERVER_CA_CRT}"
+  kubectl config set-credentials default-admin --certificate-authority="$tempdir/${SERVER_CA_CRT}" --client-key="$tempdir/client-admin.key" --client-certificate="$tempdir/client-admin.crt"
+  kubectl config set-context default-system --cluster=default-cluster --user=default-admin
+  kubectl config use-context default-system
 }
 
 function create_registry_rc() {
   echo " Create registry replication controller"
-  kubectl create -f $ROOT/registry-rc.yaml
+  sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forEmptyDirRegistry.sed" < "${KUBE_ROOT}/cluster/addons/registry/registry-rc.yaml"  > "${KUBE_ROOT}/cluster/libvirt-coreos/registry-rc.yaml"
+  kubectl create -f "${KUBE_ROOT}/cluster/libvirt-coreos/registry-rc.yaml"
   local timeout=120
   while [[ $timeout -ne 0 ]]; do
     phase=$(kubectl get pods -n kube-system -lk8s-app=kube-registry --output='jsonpath={.items..status.phase}')
     if [ "$phase" = "Running" ]; then
-      return 0
+      break
     fi
     timeout=$(($timeout-1))
     sleep .5
   done
+  rm -rf "${KUBE_ROOT}/cluster/libvirt-coreos/registry-rc.yaml"
 }
-
 
 function create_registry_svc() {
   echo " Create registry service"
   kubectl create -f "${KUBE_ROOT}/cluster/addons/registry/registry-svc.yaml"
 }
 
-function wait-registry-readiness() {
-  if [[ "$ENABLE_CLUSTER_REGISTRY" != "true" ]]; then
-    return 0
-  fi
-  echo "Wait for registry readiness..."
+function create_registry_daemonset() {
+  echo "Create registry daemonset"
+  kubectl create -f "${KUBE_ROOT}/cluster/saltbase/salt/kube-registry-proxy/kube-registry-proxy.yaml"
+  local timeout=120
+  while [[ $timeout -ne 0 ]]; do
+    desiredNumberScheduled=$(kubectl get daemonset kube-registry-proxy -n kube-system  -o='jsonpath={.items...status.currentNumberScheduled}')
+    numberReady=$(kubectl get daemonset kube-registry-proxy -n kube-system  -o='jsonpath={.items...status.numberReady}')
+    if [ $desiredNumberScheduled = $numberReady]; then
+      echo "Registry daemonset ready"
+      return 0
+    fi
+    echo "waiting for kube-registry-proxy on each node"
+    timeout=$(($timeout-1))
+    sleep .5
+  done
+}
+
+function wait-kube-system() {
   local timeout=120
   while [[ $timeout -ne 0 ]]; do
     phase=$(kubectl get namespaces --output=jsonpath='{.items[?(@.metadata.name=="kube-system")].status.phase}')
     if [ "$phase" = "Active" ]; then
-      create_registry_rc
-      create_registry_svc
-      return 0
+      message_ok "kube-system namespace ok"
+      break
     fi
     echo "waiting for namespace kube-system"
     timeout=$(($timeout-1))
     sleep .5
   done
+}
+
+function start-registry() {
+  if [[ "$ENABLE_CLUSTER_REGISTRY" != "true" ]]; then
+    return 0
+  fi
+
+  echo "Create registry..."
+  create_registry_svc
+  create_registry_rc
+  create_registry_daemonset
+
+  message_ok "registry up&running"
 }
 
 # Delete a kubernetes cluster
@@ -388,6 +507,7 @@ function kube-push {
   for ((i=0; i < NUM_NODES; i++)); do
     ssh-to-node "${NODE_NAMES[$i]}" "sudo systemctl restart kubelet kube-proxy"
   done
+
   wait-cluster-readiness
 }
 
@@ -412,6 +532,7 @@ function kube-push-local {
   rm -rf "$POOL_PATH/kubernetes/bin/*"
   mkdir -p "$POOL_PATH/kubernetes/bin"
   cp "${KUBE_ROOT}/_output/local/go/bin"/* "$POOL_PATH/kubernetes/bin"
+
 }
 
 # Execute prior to running tests to build a release if required for env
