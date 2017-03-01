@@ -1,0 +1,164 @@
+#cloud-config
+
+hostname: ${name}
+
+ssh_authorized_keys:
+${ssh_keys}
+
+write_files:
+  - path: /etc/systemd/journald.conf
+    permissions: 0644
+    content: |
+      [Journal]
+      SystemMaxUse=50M
+      RuntimeMaxUse=50M
+
+
+coreos:
+  units:
+    - name: static.network
+      command: start
+      content: |
+        [Match]
+        # Name=eth0
+        MACAddress=52:54:00:00:00:${i}
+
+        [Network]
+        Address=${public_ip}/24
+        DNS=192.168.10.254
+        Gateway=192.168.10.254
+    - name: cbr0.netdev
+      command: start
+      content: |
+        [NetDev]
+        Kind=bridge
+        Name=cbr0
+    - name: cbr0.network
+      command: start
+      content: |
+        [Match]
+        Name=cbr0
+
+        [Network]
+        Address=${NODE_CONTAINER_SUBNETS[$i]}
+
+        [Route]
+        Destination=${CONTAINER_SUBNET}
+    - name: cbr0-interface.network
+      command: start
+      content: |
+        [Match]
+        # Name=eth1
+        MACAddress=52:54:00:00:01:${i}
+
+        [Network]
+        Bridge=cbr0
+    - name: nat.service
+      command: start
+      content: |
+        [Unit]
+        Description=NAT non container traffic
+
+        [Service]
+        ExecStart=/usr/sbin/iptables -w -t nat -A POSTROUTING -o eth0 -j MASQUERADE ! -d ${CONTAINER_SUBNET}
+        RemainAfterExit=yes
+        Type=oneshot
+    - name: etcd2.service
+      command: start
+      drop-ins:
+        - name: 10-override-name.conf
+          content: |
+            [Service]
+            Environment=ETCD_NAME=%H
+    - name: docker.service
+      command: start
+      drop-ins:
+        - name: 50-opts.conf
+          content: |
+            [Service]
+            Environment='DOCKER_OPTS=--bridge=cbr0 --iptables=false'
+    - name: docker-tcp.socket
+      command: start
+      enable: yes
+      content: |
+        [Unit]
+        Description=Docker Socket for the API
+
+        [Socket]
+        ListenStream=2375
+        BindIPv6Only=both
+        Service=docker.service
+
+        [Install]
+        WantedBy=sockets.target
+    - name: opt-kubernetes.mount
+      command: start
+      content: |
+        [Unit]
+        ConditionVirtualization=|vm
+
+        [Mount]
+        What=kubernetes
+        Where=/opt/kubernetes
+        Options=ro,trans=virtio,version=9p2000.L
+        Type=9p
+  update:
+    group: ${COREOS_CHANNEL:-alpha}
+    reboot-strategy: off
+
+coreos:
+  units:
+    - name: kubelet.service
+      command: start
+      content: |
+        [Unit]
+        After=opt-kubernetes.mount docker.socket
+        ConditionFileIsExecutable=/opt/kubernetes/bin/kubelet
+        Description=Kubernetes Kubelet
+        Documentation=https://github.com/kubernetes/kubernetes
+        Requires=opt-kubernetes.mount docker.socket
+
+        [Service]
+        ExecStart=/opt/kubernetes/bin/kubelet \
+        --chaos-chance=0.0 \
+        --container-runtime=docker \
+        --experimental-cri=false \
+        --hostname-override=${NODE_IPS[$i]} \
+        --cluster-domain=cluster.local \
+        --api-servers=https://${MASTER_IP}:6443 \
+        --require-kubeconfig \
+        --kubeconfig /opt/kubernetes/config/${NODE_NAMES[$i]}-kubelet.kubeconfig \
+        --feature-gates=AllAlpha=true \
+        $( [[ "$ENABLE_CLUSTER_DNS" == "true" ]] && echo "--cluster-dns=${DNS_SERVER_IP}" ) \
+        $( [[ "$ENABLE_CLUSTER_DNS" == "true" ]] && echo "--cluster-domain=${DNS_DOMAIN}" ) \
+        --pod-manifest-path=/opt/kubernetes/manifests \
+        --port=10250 \
+        --v=3
+        Restart=always
+        RestartSec=2
+
+        [Install]
+        WantedBy=multi-user.target
+    - name: kube-proxy.service
+      command: start
+      content: |
+        [Unit]
+        After=opt-kubernetes.mount
+        ConditionFileIsExecutable=/opt/kubernetes/bin/kube-proxy
+        Description=Kubernetes Proxy
+        Documentation=https://github.com/kubernetes/kubernetes
+        Requires=opt-kubernetes.mount
+
+        [Service]
+        ExecStart=/opt/kubernetes/bin/kube-proxy \
+        --feature-gates=AllAlpha=true \
+        --kubeconfig /opt/kubernetes/config/${NODE_NAMES[$i]}-kube-proxy.kubeconfig \
+        --master=https://${MASTER_IP}:6443 \
+        --hostname-override=${NODE_IPS[$i]} \
+        --v=3
+
+        Restart=always
+        RestartSec=2
+
+        [Install]
+        WantedBy=multi-user.target
