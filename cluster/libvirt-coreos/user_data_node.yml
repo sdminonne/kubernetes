@@ -113,13 +113,13 @@ coreos:
       content: |
         [Unit]
         After=opt-kubernetes.mount docker.socket
-        ConditionFileIsExecutable=/opt/kubernetes/bin/kubelet
+        ConditionFileIsExecutable=/opt/kubernetes/bin/hyperkube
         Description=Kubernetes Kubelet
         Documentation=https://github.com/kubernetes/kubernetes
         Requires=opt-kubernetes.mount docker.socket
 
         [Service]
-        ExecStart=/opt/kubernetes/bin/kubelet \
+        ExecStart=/opt/kubernetes/bin/hyperkube kubelet \
         --chaos-chance=0.0 \
         --container-runtime=docker \
         --experimental-cri=false \

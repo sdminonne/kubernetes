@@ -255,7 +255,7 @@ function start_api_server {
   mkdir -p ${kubernetes_dir}/bin
   mkdir -p ${kubernetes_dir}/certs
   mkdir -p ${kubernetes_dir}/config
-  cp ${KUBE_ROOT}/_output/local/go/bin/kube-apiserver ${kubernetes_dir}/bin
+  cp ${KUBE_ROOT}/_output/local/go/bin/hyperkube ${kubernetes_dir}/bin
 
   #TODO: @sdminonne port to etcd3
   #Using .../hack/lib/etcd.sh
@@ -498,7 +498,7 @@ function kube-push-release {
 function kube-push-local {
   rm -rf "$POOL_PATH/kubernetes/bin/*"
   mkdir -p "$POOL_PATH/kubernetes/bin"
-  cp "${KUBE_ROOT}/_output/local/go/bin"/* "$POOL_PATH/kubernetes/bin"
+  cp "${KUBE_ROOT}/_output/local/go/bin/hyperkube" "$POOL_PATH/kubernetes/bin"
 
 }
 
