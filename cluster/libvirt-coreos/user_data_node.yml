@@ -102,6 +102,19 @@ coreos:
         Where=/opt/kubernetes
         Options=ro,trans=virtio,version=9p2000.L
         Type=9p
+
+    - name: var-lib-kubelet.mount
+      command: start
+      content: |
+        [Unit]
+        ConditionVirtualization=|vm
+
+        [Mount]
+        What=kubelet
+        Where=/var/lib/kubelet
+        Options=ro,trans=virtio,version=9p2000.L
+        Type=9p
+
   update:
     group: ${COREOS_CHANNEL:-alpha}
     reboot-strategy: off
@@ -112,28 +125,36 @@ coreos:
       command: start
       content: |
         [Unit]
-        After=opt-kubernetes.mount docker.socket
-        ConditionFileIsExecutable=/opt/kubernetes/bin/kubelet
+        After=opt-kubernetes.mount docker.socket var-lib-kubelet.mount
+        ConditionFileIsExecutable=/opt/kubernetes/bin/hyperkube
         Description=Kubernetes Kubelet
         Documentation=https://github.com/kubernetes/kubernetes
         Requires=opt-kubernetes.mount docker.socket
 
         [Service]
-        ExecStart=/opt/kubernetes/bin/kubelet \
+        ExecStart=/opt/kubernetes/bin/hyperkube kubelet \
         --chaos-chance=0.0 \
         --container-runtime=docker \
-        --experimental-cri=false \
         --hostname-override=${NODE_IPS[$i]} \
+        --address=${NODE_IPS[$i]} \
         --cluster-domain=cluster.local \
-        --api-servers=https://${MASTER_IP}:6443 \
-        --require-kubeconfig \
+        --cluster-dns=${DNS_SERVER_IP} \
+        --cloud-config= \
         --kubeconfig /opt/kubernetes/config/${NODE_NAMES[$i]}-kubelet.kubeconfig \
-        --feature-gates=AllAlpha=true \
+        --feature-gates=AllAlpha=false \
         $( [[ "$ENABLE_CLUSTER_DNS" == "true" ]] && echo "--cluster-dns=${DNS_SERVER_IP}" ) \
         $( [[ "$ENABLE_CLUSTER_DNS" == "true" ]] && echo "--cluster-domain=${DNS_DOMAIN}" ) \
+        --cpu-cfs-quota=true \
+        --enable-controller-attach-detach=true \
+        --cgroups-per-qos=true \
+        --cgroup-driver=cgroupfs \
+        --keep-terminated-pod-volumes=true \
+        --eviction-hard=memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5% \
+        --eviction-soft= \
+        --eviction-pressure-transition-period=1m \
         --pod-manifest-path=/opt/kubernetes/manifests \
         --port=10250 \
-        --v=3
+        --v=6
         Restart=always
         RestartSec=2
 
@@ -143,20 +164,19 @@ coreos:
       command: start
       content: |
         [Unit]
-        After=opt-kubernetes.mount
-        ConditionFileIsExecutable=/opt/kubernetes/bin/kube-proxy
+        After=opt-kubernetes.mount docker.socket
+        ConditionFileIsExecutable=/opt/kubernetes/bin/hyperkube
         Description=Kubernetes Proxy
         Documentation=https://github.com/kubernetes/kubernetes
-        Requires=opt-kubernetes.mount
+        Requires=opt-kubernetes.mount docker.socket
 
         [Service]
-        ExecStart=/opt/kubernetes/bin/kube-proxy \
-        --feature-gates=AllAlpha=true \
+        ExecStart=/opt/kubernetes/bin/hyperkube proxy\
+        --feature-gates=AllAlpha=false \
         --kubeconfig /opt/kubernetes/config/${NODE_NAMES[$i]}-kube-proxy.kubeconfig \
         --master=https://${MASTER_IP}:6443 \
         --hostname-override=${NODE_IPS[$i]} \
         --v=3
-
         Restart=always
         RestartSec=2
 

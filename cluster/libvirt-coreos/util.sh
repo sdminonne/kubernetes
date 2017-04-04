@@ -27,7 +27,7 @@ source "$KUBE_ROOT/cluster/common.sh"
 source "${KUBE_ROOT}/hack/lib/init.sh"
 
 kube::util::test_openssl_installed
-kube::util::test_cfssl_installed
+kube::util::ensure-cfssl
 
 export LIBVIRT_DEFAULT_URI=qemu:///system
 export SERVICE_ACCOUNT_LOOKUP=${SERVICE_ACCOUNT_LOOKUP:-true}
@@ -36,38 +36,6 @@ readonly POOL=kubernetes
 readonly POOL_PATH=/var/lib/libvirt/images/kubernetes
 
 [ ! -d "${POOL_PATH}" ] && (echo "$POOL_PATH" does not exist ; exit 1 )
-
-# Creates a kubeconfig file for the kubelet.
-# Args: address (e.g. "http://localhost:8080"), destination file path
-function create-kubelet-kubeconfig() {
-  local apiserver_address="${1}"
-  local destination="${2}"
-  if [[ -z "${apiserver_address}" ]]; then
-    echo "Must provide API server address to create Kubelet kubeconfig file!"
-    exit 1
-  fi
-  if [[ -z "${destination}" ]]; then
-    echo "Must provide destination path to create Kubelet kubeconfig file!"
-    exit 1
-  fi
-  echo "Creating Kubelet kubeconfig file"
-  local dest_dir="$(dirname "${destination}")"
-  mkdir -p "${dest_dir}" &>/dev/null || sudo mkdir -p "${dest_dir}"
-  sudo=$(test -w "${dest_dir}" || echo "sudo -E")
-  cat <<EOF | ${sudo} tee "${destination}" > /dev/null
-apiVersion: v1
-kind: Config
-clusters:
-  - cluster:
-      server: ${apiserver_address}
-    name: local
-contexts:
-  - context:
-      cluster: local
-    name: local
-current-context: local
-EOF
-}
 
 # join <delim> <list...>
 # Concatenates the list elements with the delimiter passed as first parameter
@@ -114,6 +82,7 @@ function generate_certs {
 
    SERVICE_ACCOUNT_KEY_FILE=${SERVICE_ACCOUNT_KEY_FILE:-kube-serviceaccount.key}
    openssl genrsa -out "$tempdir/${SERVICE_ACCOUNT_KEY_FILE}" 2048 2>/dev/null
+   chmod 666 "$tempdir/${SERVICE_ACCOUNT_KEY_FILE}"
    cp "${tempdir}/${SERVICE_ACCOUNT_KEY_FILE}" "$POOL_PATH/kubernetes/certs"
 
    kube::util::create_serving_certkey "" "${tempdir}" "server-ca" kube-apiserver kubernetes kubernetes.default kubernetes.default.svc  "localhost" ${MASTER_IP} ${MASTER_NAME} ${SERVICE_CLUSTER_IP_RANGE%.*}.1
@@ -178,8 +147,8 @@ function destroy-pool {
   virsh pool-info $POOL >/dev/null 2>&1 || return
 
   rm -rf "$POOL_PATH"/kubernetes/*
-  rm -rf "$POOL_PATH"/kubernetes_config*/*
-  rm -rf "$POOL_PATH"/kubernetes_kubernetes*/*
+  rm -rf "$POOL_PATH"/kubernetes-master
+  rm -rf "$POOL_PATH"/kubernetes-node-*
 
   local vol
   virsh vol-list $POOL | awk 'NR>2 && !/^$/ && $1 ~ /^kubernetes/ {print $1}' | \
@@ -273,7 +242,7 @@ function wait-cluster-readiness {
 #Needs API_HOST_IP
 #Needs ETCD_PORT
 #Needs MASTER_NAME
-function start_api_server {
+function start_apiserver {
   #TODO: @sdminonne port to etcd3
   #Using .../hack/lib/etcd.sh
 
@@ -287,9 +256,9 @@ function start_api_server {
   mkdir -p ${kubernetes_dir}/bin
   mkdir -p ${kubernetes_dir}/certs
   mkdir -p ${kubernetes_dir}/config
-  cp ${KUBE_ROOT}/_output/local/go/bin/kube-apiserver ${kubernetes_dir}/bin
+  cp ${KUBE_ROOT}/_output/local/go/bin/hyperkube ${kubernetes_dir}/bin
 
-  #TODO: @sdminonne port to etcd3
+  #TODO: @sdminonne port to etcd3 and to coreos ignition sdl
   #Using .../hack/lib/etcd.sh
   etcd2_initial_cluster="${apiserver_name}=http://${MASTER_IP}:${ETCD_PEER_PORT}"
   type=master
@@ -297,7 +266,7 @@ function start_api_server {
   public_ip=${api_host_ip}
   memory=2048
   image=$name.img
-  config=kubernetes_config_$type
+  config=kubernetes-$type
   virsh vol-create-as $POOL $image 10G --format qcow2 --backing-vol coreos_base.img --backing-vol-format qcow2
 
   mkdir -p "$POOL_PATH/$config/openstack/latest"
@@ -311,6 +280,10 @@ function start_api_server {
 
   kube::util::wait_for_url "http://${MASTER_IP}:${ETCD_PORT}/v2/machines" "etcd: " 0.25 4000
   curl -fs -X PUT "http://${MASTER_IP}:${ETCD_PORT}/v2/keys/_test"
+
+  readonly wait_for_url_api_srever=30
+  kube::util::wait_for_url "http://${MASTER_IP}:8080/version" "apiserver: " 1 ${wait_for_url_api_srever}
+
 
 
 }
@@ -332,10 +305,8 @@ function kube-up {
   setup_registry_proxy
   initialize-network
 
-  start_api_server
+  start_apiserver
 
-  readonly wait_for_url_api_srever=30
-  kube::util::wait_for_url "http://${MASTER_IP}:8080/version" "apiserver: " 1 ${wait_for_url_api_srever}
   message_ok "k8s API server up and running"
 
   configure-kubectl
@@ -347,22 +318,21 @@ function kube-up {
   kube::util::write_client_kubeconfig "" "${tempdir}" "${SERVER_CA_CRT}" "${MASTER_NAME}" "6443" scheduler
   cp "${tempdir}/scheduler.kubeconfig" "$POOL_PATH/kubernetes/config"
   start_controller_and_scheduler
-
   message_ok "controller and scheduler started"
-  node_names=("${NODE_NAMES[@]}")
 
   for (( i = 0 ; i < $NUM_NODES ; i++ )); do
-    type=node-$(printf "%02d" $i)
+    message_ok "Generating domain for ${NODE_NAMES[i]}"
     name="${NODE_NAMES[i]}"
     public_ip=${NODE_IPS[$i]}
     memory=1024
-    image=$name.img
-    config=kubernetes_config_$type
+    image="${NODE_NAMES[i]}".img
+    config="${NODE_NAMES[i]}"
 
     virsh vol-create-as $POOL $image 10G --format qcow2 --backing-vol coreos_base.img --backing-vol-format qcow2
 
-    mkdir -p "$POOL_PATH/$config/openstack/latest"
-    render-template "$ROOT/user_data_node.yml" > "$POOL_PATH/$config/openstack/latest/user_data"
+    mkdir -p "$POOL_PATH/${NODE_NAMES[i]}/openstack/latest"
+    mkdir -p "$POOL_PATH/${NODE_NAMES[i]}/var/lib/kubelet"
+    render-template "$ROOT/user_data_node.yml" > "$POOL_PATH/${NODE_NAMES[i]}/openstack/latest/user_data"
 
     kube::util::create_client_certkey "" "${tempdir}" 'client-ca' "${NODE_NAMES[$i]}-kubelet" system:node:${NODE_NAMES[$i]} system:nodes
     kube::util::write_client_kubeconfig "" "${tempdir}" "${SERVER_CA_CRT}" "${MASTER_IP}" "6443" "${NODE_NAMES[$i]}-kubelet"
@@ -382,7 +352,7 @@ function kube-up {
   wait-kube-system
   start_kubedns
   start-registry
-  create-kubelet-kubeconfig "http://${MASTER_IP}:8080" "${POOL_PATH}/kubernetes/kubeconfig/kubelet.kubeconfig"
+  #create-kubelet-kubeconfig "http://${MASTER_IP}:8080" "${POOL_PATH}/kubernetes/kubeconfig/kubelet.kubeconfig"
 
 }
 
@@ -398,7 +368,7 @@ function start_kubedns {
   render-template "$ROOT/kubedns-controller.yaml.tmp"  > "$ROOT/kubedns-controller.yaml"
 
   echo "starting kubedns..."
-  #kubectl create clusterrolebinding system:kube-dns --clusterrole=cluster-admin --serviceaccount=kube-system:default
+  kubectl  create clusterrolebinding system:kube-dns --clusterrole=cluster-admin --serviceaccount=kube-system:default
   kubectl  --namespace=kube-system create -f "${KUBE_ROOT}/cluster/addons/dns/kubedns-sa.yaml"
   kubectl  --namespace=kube-system create -f "${KUBE_ROOT}/cluster/addons/dns/kubedns-cm.yaml"
   kubectl  --namespace=kube-system create -f "$ROOT/kubedns-controller.yaml"
@@ -531,7 +501,7 @@ function kube-push-release {
 function kube-push-local {
   rm -rf "$POOL_PATH/kubernetes/bin/*"
   mkdir -p "$POOL_PATH/kubernetes/bin"
-  cp "${KUBE_ROOT}/_output/local/go/bin"/* "$POOL_PATH/kubernetes/bin"
+  cp "${KUBE_ROOT}/_output/local/go/bin/hyperkube" "$POOL_PATH/kubernetes/bin"
 
 }
 

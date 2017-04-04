@@ -119,13 +119,13 @@ coreos:
       content: |
         [Unit]
         After=opt-kubernetes.mount etcd2.service
-        ConditionFileIsExecutable=/opt/kubernetes/bin/kube-apiserver
+        ConditionFileIsExecutable=/opt/kubernetes/bin/hyperkube
         Description=Kubernetes API Server
         Documentation=https://github.com/kubernetes/kubernetes
         Requires=opt-kubernetes.mount etcd2.service
 
         [Service]
-        ExecStart=/opt/kubernetes/bin/kube-apiserver \
+        ExecStart=/opt/kubernetes/bin/hyperkube apiserver \
         --client-ca-file=/opt/kubernetes/certs/${CLIENT_CA_CRT} \
         --service-account-lookup=${SERVICE_ACCOUNT_LOOKUP} \
         --service-account-key-file=/opt/kubernetes/certs/${SERVICE_ACCOUNT_KEY_FILE} \
@@ -137,6 +137,7 @@ coreos:
         --insecure-port=8080 \
         --bind-address=0.0.0.0 \
         --secure-port=6443 \
+        --runtime-config=api/all=true \
         --etcd-servers=http://127.0.0.1:2379 \
         --storage-backend=etcd2 \
         --service-cluster-ip-range=${SERVICE_CLUSTER_IP_RANGE} \
@@ -147,24 +148,23 @@ coreos:
         --requestheader-extra-headers-prefix=X-Remote-Extra- \
         --requestheader-client-ca-file=/opt/kubernetes/certs/${REQUEST_HEADER_CRT} \
         --requestheader-allowed-names=system:auth-proxy \
-        --v=4
+        --v=3
         Restart=always
         RestartSec=2
 
         [Install]
         WantedBy=multi-user.target
     - name: kube-controller-manager.service
-      command: start
       content: |
         [Unit]
         After=opt-kubernetes.mount kube-apiserver.service
-        ConditionFileIsExecutable=/opt/kubernetes/bin/kube-controller-manager
+        ConditionFileIsExecutable=/opt/kubernetes/bin/hyperkube
         Description=Kubernetes Controller Manager
         Documentation=https://github.com/kubernetes/kubernetes
         Requires=opt-kubernetes.mount kube-apiserver.service
 
         [Service]
-        ExecStart=/opt/kubernetes/bin/kube-controller-manager \
+        ExecStart=/opt/kubernetes/bin/hyperkube controller-manager \
         --service-account-private-key-file=/opt/kubernetes/certs/${SERVICE_ACCOUNT_KEY_FILE} \
         --root-ca-file=/opt/kubernetes/certs/${SERVER_CA_CRT} \
         --enable-hostpath-provisioner=false \
@@ -180,17 +180,16 @@ coreos:
         [Install]
         WantedBy=multi-user.target
     - name: kube-scheduler.service
-      command: start
       content: |
         [Unit]
         After=opt-kubernetes.mount kube-apiserver.service
-        ConditionFileIsExecutable=/opt/kubernetes/bin/kube-scheduler
+        ConditionFileIsExecutable=/opt/kubernetes/bin/hyperkube
         Description=Kubernetes Scheduler
         Documentation=https://github.com/kubernetes/kubernetes
         Requires=opt-kubernetes.mount kube-apiserver.service
 
         [Service]
-        ExecStart=/opt/kubernetes/bin/kube-scheduler \
+        ExecStart=/opt/kubernetes/bin/hyperkube scheduler \
         --kubeconfig /opt/kubernetes/config/scheduler.kubeconfig \
         --master=https://${MASTER_IP}:6443 \
         --v=3
