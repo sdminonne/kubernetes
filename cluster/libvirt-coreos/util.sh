@@ -27,7 +27,7 @@ source "$KUBE_ROOT/cluster/common.sh"
 source "${KUBE_ROOT}/hack/lib/init.sh"
 
 kube::util::test_openssl_installed
-kube::util::test_cfssl_installed
+kube::util::ensure-cfssl
 
 export LIBVIRT_DEFAULT_URI=qemu:///system
 export SERVICE_ACCOUNT_LOOKUP=${SERVICE_ACCOUNT_LOOKUP:-true}
