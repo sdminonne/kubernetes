@@ -302,7 +302,6 @@ function kube-up {
   detect-nodes
   initialize-pool keep_base_image
   generate_certs "${NODE_NAMES[@]}"
-  setup_registry_proxy
   initialize-network
 
   start_apiserver
@@ -359,6 +358,7 @@ function kube-up {
 
 function start_kubedns {
   if [[ "${ENABLE_CLUSTER_DNS}" != "true" ]]; then
+    export DNS_SERVER_IP="8.8.8.8"
     return 0
   fi
   sed -f "${KUBE_ROOT}/cluster/addons/dns/transforms2sed.sed" < "${KUBE_ROOT}/cluster/addons/dns/kubedns-controller.yaml.base" | sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forShellEval.sed"  > "${KUBE_ROOT}/cluster/libvirt-coreos/kubedns-controller.yaml.tmp"
@@ -444,6 +444,7 @@ function start-registry() {
   fi
 
   echo "Create registry..."
+  setup_registry_proxy
   create_registry_svc
   create_registry_rc
   create_registry_daemonset
