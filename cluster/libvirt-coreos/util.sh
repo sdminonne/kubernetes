@@ -361,20 +361,21 @@ function start_kubedns {
     export DNS_SERVER_IP="8.8.8.8"
     return 0
   fi
-  sed -f "${KUBE_ROOT}/cluster/addons/dns/transforms2sed.sed" < "${KUBE_ROOT}/cluster/addons/dns/kubedns-controller.yaml.base" | sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forShellEval.sed"  > "${KUBE_ROOT}/cluster/libvirt-coreos/kubedns-controller.yaml.tmp"
-  sed -f "${KUBE_ROOT}/cluster/addons/dns/transforms2sed.sed" < "${KUBE_ROOT}/cluster/addons/dns/kubedns-svc.yaml.base" | sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forShellEval.sed"  > "${KUBE_ROOT}/cluster/libvirt-coreos/kubedns-svc.yaml.tmp"
+  sed -f "${KUBE_ROOT}/cluster/addons/dns/transforms2sed.sed" < "${KUBE_ROOT}/cluster/addons/dns/kube-dns.yaml.base" | sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forShellEval.sed"  > "${KUBE_ROOT}/cluster/libvirt-coreos/kube-dns.yaml.tmp"
+  #sed -f "${KUBE_ROOT}/cluster/addons/dns/transforms2sed.sed" < "${KUBE_ROOT}/cluster/addons/dns/kube-dns-svc.yaml.base" | sed -f "${KUBE_ROOT}/cluster/libvirt-coreos/forShellEval.sed"  > "${KUBE_ROOT}/cluster/libvirt-coreos/kube-dns-svc.yaml.tmp"
 
-  render-template "$ROOT/kubedns-svc.yaml.tmp" > "$ROOT/kubedns-svc.yaml"
-  render-template "$ROOT/kubedns-controller.yaml.tmp"  > "$ROOT/kubedns-controller.yaml"
+  render-template "$ROOT/kube-dns.yaml.tmp" > "$ROOT/kube-dns.yaml"
+  #render-template "$ROOT/kube-dns-controller.yaml.tmp"  > "$ROOT/kube-dns-controller.yaml"
 
-  echo "starting kubedns..."
+  echo "starting kube-dns..."
   kubectl  create clusterrolebinding system:kube-dns --clusterrole=cluster-admin --serviceaccount=kube-system:default
-  kubectl  --namespace=kube-system create -f "${KUBE_ROOT}/cluster/addons/dns/kubedns-sa.yaml"
-  kubectl  --namespace=kube-system create -f "${KUBE_ROOT}/cluster/addons/dns/kubedns-cm.yaml"
-  kubectl  --namespace=kube-system create -f "$ROOT/kubedns-controller.yaml"
-  kubectl  --namespace=kube-system create -f "$ROOT/kubedns-svc.yaml"
+  #kubectl  --namespace=kube-system create -f "${KUBE_ROOT}/cluster/addons/dns/kube-dns-sa.yaml"
+  #kubectl  --namespace=kube-system create -f "${KUBE_ROOT}/cluster/addons/dns/kube-dns-cm.yaml"
+  kubectl  --namespace=kube-system create -f "$ROOT/kube-dns.yaml"
+  #kubectl  --namespace=kube-system create -f "$ROOT/kube-dns-svc.yaml"
 
-  rm -rf "$ROOT/kubedns-controller.yaml" "$ROOT/kubedns-controller.yaml.tmp" "$ROOT/kubedns-svc.yaml" "$ROOT/kubedns-svc.yaml.tmp"
+  rm -rf "$ROOT/kube-dns.yaml"
+  #"$ROOT/kube-dns-controller.yaml.tmp" "$ROOT/kube-dns-svc.yaml" "$ROOT/kube-dns-svc.yaml.tmp"
 
 }
 
